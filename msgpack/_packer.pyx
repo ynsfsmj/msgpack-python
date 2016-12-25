@@ -41,7 +41,7 @@ cdef extern from "pack.h":
     int msgpack_pack_array(msgpack_packer* pk, size_t l)
     int msgpack_pack_tuple(msgpack_packer* pk, size_t l)
     int msgpack_pack_set(msgpack_packer* pk, size_t l)
-    int msgpack_pack_object(msgpack_packer* pk, char* mn, size_t mnl, char* cn, size_t cnl, size_t l)
+    int msgpack_pack_object(msgpack_packer* pk)
     int msgpack_pack_map(msgpack_packer* pk, size_t l)
     int msgpack_pack_raw(msgpack_packer* pk, size_t l)
     int msgpack_pack_bin(msgpack_packer* pk, size_t l)
@@ -257,6 +257,8 @@ cdef class Packer(object):
                     raise PackValueError("tuple is too large")
                 ret = msgpack_pack_tuple(&self.pk, L)
                 if ret == 0:
+                    ret = msgpack_pack_array(&self.pk, L)
+                if ret == 0:
                     for v in o:
                         ret = self._pack(v, nest_limit-1)
                         if ret != 0: break
@@ -266,6 +268,8 @@ cdef class Packer(object):
                 if L > ITEM_LIMIT:
                     raise PackValueError("set is too large")
                 ret = msgpack_pack_set(&self.pk, L)
+                if ret == 0:
+                    ret = msgpack_pack_array(&self.pk, L)
                 if ret == 0:
                     for v in o:
                         ret = self._pack(v, nest_limit-1)
@@ -294,10 +298,16 @@ cdef class Packer(object):
                 if L > ITEM_LIMIT:
                     raise PackValueError("object is too large")
                 if mnl >= MODULE_CLASS_NAME_LIMIT or cnl >= MODULE_CLASS_NAME_LIMIT:
+                    # we limit the name length to less than 128 to make sure the bin type is (0xc4)
                     raise PackValueError("module name or class name is too large" % (o.__module__, o.__class__.__name__))
                 rawval = o.__module__
                 rawval2 = o.__class__.__name__
-                ret = msgpack_pack_object(&self.pk, rawval, mnl, rawval2, cnl, L)
+                ret = msgpack_pack_object(&self.pk)
+                msgpack_pack_bin(&self.pk, mnl);
+                msgpack_pack_raw_body(&self.pk, rawval, mnl);
+                msgpack_pack_bin(&self.pk, cnl);
+                msgpack_pack_raw_body(&self.pk, rawval2, cnl);
+                msgpack_pack_map(&self.pk, L);
                 if ret == 0:
                     for k, v in d.iteritems():
                         ret = self._pack(k, nest_limit-1)

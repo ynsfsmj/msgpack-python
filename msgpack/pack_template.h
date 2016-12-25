@@ -624,7 +624,6 @@ static inline int msgpack_pack_tuple(msgpack_packer* x, unsigned int n)
     diy[0] = 0xc1;
     diy[1] = 0x00;
     msgpack_pack_append_buffer(x, &diy, 2);
-    msgpack_pack_array(x, n);
 }
 
 /*
@@ -636,24 +635,17 @@ static inline int msgpack_pack_set(msgpack_packer* x, unsigned int n)
     diy[0] = 0xc1;
     diy[1] = 0x01;
     msgpack_pack_append_buffer(x, &diy, 2);
-    msgpack_pack_array(x, n);
 }
 
 /*
  * diy : Object 0x10 [module_name][class_name][map]
  */
-static inline int msgpack_pack_object(msgpack_packer* x,  const void* module_name, unsigned int mnl, const void* class_name, unsigned int cnl, unsigned int n)
+static inline int msgpack_pack_object(msgpack_packer* x)
 {
     unsigned char diy[2];
     diy[0] = 0xc1;
     diy[1] = 0x10;
     msgpack_pack_append_buffer(x, &diy, 2);
-    // we limit the name length to less than 128 to make sure the bin type is (0xc4)
-    msgpack_pack_bin(x, mnl);
-    msgpack_pack_raw_body(x, module_name, mnl);
-    msgpack_pack_bin(x, cnl);
-    msgpack_pack_raw_body(x, class_name, mnl);
-    msgpack_pack_map(x, n);
 }
 
 /*
