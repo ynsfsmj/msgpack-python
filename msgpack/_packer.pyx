@@ -38,9 +38,12 @@ cdef extern from "pack.h":
     int msgpack_pack_float(msgpack_packer* pk, float d)
     int msgpack_pack_double(msgpack_packer* pk, double d)
     int msgpack_pack_array(msgpack_packer* pk, size_t l)
+    int msgpack_pack_tuple(msgpack_packer* pk, size_t l)
+    int msgpack_pack_set(msgpack_packer* pk, size_t l)
+    int msgpack_pack_object(msgpack_packer* pk, size_t l)
     int msgpack_pack_map(msgpack_packer* pk, size_t l)
     int msgpack_pack_raw(msgpack_packer* pk, size_t l)
-    int msgpack_pack_bin(msgpack_packer* pk, size_t l)
+    int msgpack_pack_bin(msgpack_packer* pk, char* mn, size_t mnl, char* cn, size_t cnl, size_t l)
     int msgpack_pack_raw_body(msgpack_packer* pk, char* body, size_t l)
     int msgpack_pack_ext(msgpack_packer* pk, char typecode, size_t l)
 
