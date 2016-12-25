@@ -290,10 +290,10 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
 
         default:
             if((size_t)(pe - p) < trail) { goto _out; }
-            n = p;  p += trail - 1; // �ƶ�����ָ�뵽��һ����־ͷ��ǰһ�ֽ�
+            n = p;  p += trail - 1; // 移动数据指针到下一个标志头的前一字节
             switch(cs) {
             case CS_DIY:
-                // �½�һ��ջ������ʲô��û��
+                // 新建一个栈，但是什么都没做
                 start_diy_type(*(unsigned char*)n, CT_DIY_TYPE);
             case CS_EXT_8:
                 again_fixed_trail_if_zero(ACS_EXT_VALUE, *(uint8_t*)n+1, _ext_zero);
