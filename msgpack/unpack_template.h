@@ -176,12 +176,12 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     stack[top-1].size  = count_;
 
 #define start_instance_in_diy(func, count_, ct_, module_, class_) \
-    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj, module_, class_) < 0) { goto _failed; } \
+    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj) < 0) { goto _failed; } \
     if((count_) == 0) { obj = stack[top-1].obj; \
         if (construct_cb_in_diy(func##_end)(user, &obj, module_, class_) < 0) { goto _failed; } \
         goto _push; } \
     stack[top-1].ct = ct_; \
-    stack[top-1].size  = count_; \
+    stack[top-1].size  = count_;
 
 #define start_diy_type(subtype, ct_) \
     if (top >= MSGPACK_EMBED_STACK_SIZE) { goto _failed; } \
