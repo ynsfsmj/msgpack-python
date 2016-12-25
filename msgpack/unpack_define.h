@@ -33,12 +33,11 @@ extern "C" {
 #define MSGPACK_EMBED_STACK_SIZE 32
 #endif
 
-
 // CS is first byte & 0x1f
 typedef enum {
     CS_HEADER            = 0x00,  // nil
 
-    //CS_                = 0x01,
+    CS_DIY               = 0x01,  // diy data types
     //CS_                = 0x02,  // false
     //CS_                = 0x03,  // true
 
@@ -85,8 +84,22 @@ typedef enum {
     CT_ARRAY_ITEM,
     CT_MAP_KEY,
     CT_MAP_VALUE,
+    // for diy
+    CT_DIY_TYPE,
+    CT_TUPLE_ITEM,
+    CT_SET_ITEM,
+    CT_INST_DICT_KEY,
+    CT_INST_DICT_VALUE,
+    CT_INST_MODULE,
+    CT_INST_CLASS,
+    CT_INST_DICT,
 } msgpack_container_type;
 
+typedef enum {
+    DIY_ST_TUPLE        = 0x00,
+    DIY_ST_SET          = 0x01,
+    DIY_ST_INST         = 0x10,
+} msgpack_unpack_diysubtype;
 
 #ifdef __cplusplus
 }

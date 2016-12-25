@@ -22,12 +22,20 @@
 #endif
 #endif
 
+static char module_name[MSGPACK_PYTHON_NAME_MAX];
+static char class_name[MSGPACK_PYTHON_NAME_MAX];
+
 typedef struct unpack_stack {
     PyObject* obj;
     Py_ssize_t size;
     Py_ssize_t count;
     unsigned int ct;
     PyObject* map_key;
+    // for diy
+    bool is_diy;
+    bool has_module_name;
+    bool has_class_name;
+    unsigned char diy_subtype;
 } unpack_stack;
 
 struct unpack_context {
@@ -131,6 +139,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     stack[top].ct = ct_; \
     stack[top].size  = count_; \
     stack[top].count = 0; \
+    stack[top].is_diy = false; \
     ++top; \
     /*printf("container %d count %d stack %d\n",stack[top].obj,count_,top);*/ \
     /*printf("stack push %d\n", top);*/ \
@@ -153,6 +162,37 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
         } \
     } \
     */ \
+    goto _header_again
+
+#define construct_cb_in_diy(name) \
+    construct && unpack_callback_in_diy ## name
+
+#define start_container_in_diy(func, count_, ct_) \
+    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj, ) < 0) { goto _failed; } \
+    if((count_) == 0) { obj = stack[top-1].obj; \
+        if (construct_cb_in_diy(func##_end)(user, &obj) < 0) { goto _failed; } \
+        goto _push; } \
+    stack[top-1].ct = ct_; \
+    stack[top-1].size  = count_;
+
+#define start_instance_in_diy(func, count_, ct_, module_, class_) \
+    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj, module_, class_) < 0) { goto _failed; } \
+    if((count_) == 0) { obj = stack[top-1].obj; \
+        if (construct_cb_in_diy(func##_end)(user, &obj) < 0) { goto _failed; } \
+        goto _push; } \
+    stack[top-1].ct = ct_; \
+    stack[top-1].size  = count_; \
+
+#define start_diy_type(subtype, ct_) \
+    if (top >= MSGPACK_EMBED_STACK_SIZE) { goto _failed; } \
+    stack[top].ct = ct_; \
+    stack[top].size  = count_; \
+    stack[top].count = 0; \
+    stack[top].is_diy = true; \
+    stack[top].diy_subtype = suttype; \
+    stack[top].has_module_name = false; \
+    stack[top].has_class_name = false; \
+    ++top; \
     goto _header_again
 
 #define NEXT_CS(p)  ((unsigned int)*p & 0x1f)
@@ -182,7 +222,8 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 switch(*p) {
                 case 0xc0:  // nil
                     push_simple_value(_nil);
-                //case 0xc1:  // never used
+                case 0xc1:  // diy data types
+                    again_fixed_trail(NEXT_CS(p), 1);
                 case 0xc2:  // false
                     push_simple_value(_false);
                 case 0xc3:  // true
@@ -249,8 +290,11 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
 
         default:
             if((size_t)(pe - p) < trail) { goto _out; }
-            n = p;  p += trail - 1;
+            n = p;  p += trail - 1; // 移动数据指针到下一个标志头的前一字节
             switch(cs) {
+            case CS_DIY:
+                // 新建一个栈，但是什么都没做
+                start_diy_type(*(unsigned char*)n, CT_DIY_TYPE);
             case CS_EXT_8:
                 again_fixed_trail_if_zero(ACS_EXT_VALUE, *(uint8_t*)n+1, _ext_zero);
             case CS_EXT_16:
@@ -292,7 +336,26 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 push_fixed_value(_int64, _msgpack_load64(int64_t,n));
 
             case CS_BIN_8:
-                again_fixed_trail_if_zero(ACS_BIN_VALUE, *(uint8_t*)n, _bin_zero);
+                c = &stack[top-1];
+                if (c->is_diy){
+                    if (! c->has_module_name) {
+                        memcpy(module_name, n, *(uint8_t*)n);
+                        module_name[*(uint8_t*)n] = '\n';
+                        c->has_module_name = true;
+                        c->ct = CT_INST_CLASS;
+                    } else if (! c->has_class_name) {
+                        memcpy(class_name, n, *(uint8_t*)n);
+                        class_name[*(uint8_t*)n] = '\n';
+                        c->has_class_name = true;
+                        c->ct = CT_INST_DICT;
+                    } else {
+                        goto _failed;
+                    }
+                    //
+                    goto _header_again;
+                } else {
+                    again_fixed_trail_if_zero(ACS_BIN_VALUE, *(uint8_t*)n, _bin_zero);
+                }
             case CS_BIN_16:
                 again_fixed_trail_if_zero(ACS_BIN_VALUE, _msgpack_load16(uint16_t,n), _bin_zero);
             case CS_BIN_32:
@@ -316,16 +379,54 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 push_variable_value(_ext, data, n, trail);
 
             case CS_ARRAY_16:
-                start_container(_array, _msgpack_load16(uint16_t,n), CT_ARRAY_ITEM);
+                c = &stack[top-1];
+                if (c->is_diy){
+                    if (c->diy_subtype == DIY_ST_TUPLE) {
+                        start_container_in_diy(_array, _msgpack_load16(uint16_t,n), CT_TUPLE_ITEM);
+                    } else if (c->diy_subtype == DIY_ST_SET) {
+                        start_container_in_diy(_set, _msgpack_load16(uint16_t,n), CT_SET_ITEM);
+                    } else {
+                        goto _failed;
+                    }
+                } else {
+                    start_container(_array, _msgpack_load16(uint16_t,n), CT_ARRAY_ITEM);
+                }
             case CS_ARRAY_32:
-                /* FIXME security guard */
-                start_container(_array, _msgpack_load32(uint32_t,n), CT_ARRAY_ITEM);
-
+                c = &stack[top-1];
+                if (c->is_diy){
+                    if (c->diy_subtype == DIY_ST_TUPLE) {
+                        start_container_in_diy(_array, _msgpack_load32(uint32_t,n), CT_TUPLE_ITEM);
+                    } else if (c->diy_subtype == DIY_ST_SET) {
+                        start_container_in_diy(_set, _msgpack_load32(uint32_t,n), CT_SET_ITEM);
+                    } else {
+                        goto _failed;
+                    }
+                } else {
+                    start_container(_array, _msgpack_load32(uint32_t,n), CT_ARRAY_ITEM);
+                }
+                
             case CS_MAP_16:
-                start_container(_map, _msgpack_load16(uint16_t,n), CT_MAP_KEY);
+                c = &stack[top-1];
+                if (c->is_diy){
+                    if (c->diy_subtype == DIY_ST_INST) {
+                        start_container_in_diy(_inst, _msgpack_load16(uint16_t,n), CT_INST_DICT_KEY);
+                    } else {
+                        goto _failed;
+                    }
+                } else {
+                    start_container(_map, _msgpack_load16(uint16_t,n), CT_MAP_KEY);
+                }
             case CS_MAP_32:
-                /* FIXME security guard */
-                start_container(_map, _msgpack_load32(uint32_t,n), CT_MAP_KEY);
+                c = &stack[top-1];
+                if (c->is_diy){
+                    if (c->diy_subtype == DIY_ST_INST) {
+                        start_container_in_diy(_inst, _msgpack_load32(uint32_t,n), CT_INST_DICT_KEY);
+                    } else {
+                        goto _failed;
+                    }
+                } else {
+                    start_container(_map, _msgpack_load32(uint32_t,n), CT_MAP_KEY);
+                }
 
             default:
                 goto _failed;
@@ -361,7 +462,45 @@ _push:
         }
         c->ct = CT_MAP_KEY;
         goto _header_again;
-
+    // below is for diy
+    case CT_TUPLE_ITEM:
+        if(construct_cb_in_diy(_tuple_item)(user, c->count, &c->obj, obj) < 0) { goto _failed; }
+        if(++c->count == c->size) {
+            obj = c->obj;
+            if (construct_cb_in_diy(_tuple_end)(user, &obj) < 0) { goto _failed; }
+            --top;
+            goto _push;
+        }
+        goto _header_again;
+    case CT_SET_ITEM:
+        if(construct_cb_in_diy(_set_item)(user, c->count, &c->obj, obj) < 0) { goto _failed; }
+        if(++c->count == c->size) {
+            obj = c->obj;
+            if (construct_cb_in_diy(_set_end)(user, &obj) < 0) { goto _failed; }
+            --top;
+            goto _push;
+        }
+        goto _header_again;
+    case CT_INST_DICT_KEY:
+        c->map_key = obj;
+        c->ct = CT_INST_DICT_VALUE;
+        goto _header_again;
+    case CT_INST_DICT_VALUE:
+        if(construct_cb_in_diy(_inst_prop)(user, c->count, &c->obj, c->map_key, obj) < 0) { goto _failed; }
+        if(++c->count == c->size) {
+            obj = c->obj;
+            if (construct_cb_in_diy(_inst_end)(user, &obj, module_name, class_name) < 0) { goto _failed; }
+            --top;
+            goto _push;
+        }
+        c->ct = CT_MAP_KEY;
+        goto _header_again;
+    case CT_INST_MODULE:
+        goto _header_again;
+    case CT_INST_CLASS:
+        goto _header_again;
+    case CT_INST_DICT:
+        goto _header_again;
     default:
         goto _failed;
     }

@@ -1,6 +1,15 @@
 # coding: utf-8
 #cython: embedsignature=True
 
+# 现在我们让 msgpack 支持简单的 Python 对象的序列化
+# msgpack 中的 0xc1 类型保留无用，我们拿过来作为自定义的类型头前缀
+# 我们的自定义头命名为 diy，第一个字节为 0xc1
+# diy 的第二个字节表示子类型，定义如下：
+# 0x00: tuple
+# 0x01: set (frozenset will be treated as set now)
+# 0x10: object
+# 外部沿用 msgpack.packb/unpackb 接口，因此不采用定义 default 函数的方法，而是在内部实现。
+
 from cpython cimport *
 
 from msgpack.exceptions import PackValueError, PackOverflowError
@@ -35,8 +44,9 @@ cdef extern from "pack.h":
     int msgpack_pack_raw_body(msgpack_packer* pk, char* body, size_t l)
     int msgpack_pack_ext(msgpack_packer* pk, char typecode, size_t l)
 
-cdef int DEFAULT_RECURSE_LIMIT=511
+cdef int DEFAULT_RECURSE_LIMIT=32
 cdef size_t ITEM_LIMIT = (2**32)-1
+cdef size_t MODULE_CLASS_NAME_LIMIT = 128
 
 
 cdef class Packer(object):
@@ -70,7 +80,6 @@ cdef class Packer(object):
         If set to true, types will be checked to be exact. Derived classes
         from serializeable types will not be serialized and will be
         treated as unsupported type and forwarded to default.
-        Additionally tuples will not be serialized as lists.
         This is useful when trying to implement accurate serialization
         for python types.
     """
@@ -129,9 +138,12 @@ cdef class Packer(object):
         cdef float fval
         cdef double dval
         cdef char* rawval
+        cdef char* rawval2
         cdef int ret
         cdef dict d
         cdef size_t L
+        cdef size_t mnl
+        cdef size_t cnl
         cdef int default_used = 0
         cdef bint strict_types = self.strict_types
         cdef Py_buffer view
@@ -225,11 +237,31 @@ cdef class Packer(object):
                     raise PackValueError("EXT data is too large")
                 ret = msgpack_pack_ext(&self.pk, longval, L)
                 ret = msgpack_pack_raw_body(&self.pk, rawval, L)
-            elif PyList_CheckExact(o) if strict_types else (PyTuple_Check(o) or PyList_Check(o)):
+            elif PyList_CheckExact(o) if strict_types else PyList_Check(o):
                 L = len(o)
                 if L > ITEM_LIMIT:
                     raise PackValueError("list is too large")
                 ret = msgpack_pack_array(&self.pk, L)
+                if ret == 0:
+                    for v in o:
+                        ret = self._pack(v, nest_limit-1)
+                        if ret != 0: break
+            elif PyTuple_CheckExact(o) if strict_types else PyTuple_Check(o):
+                L = len(o)
+                print "[tuple]"
+                if L > ITEM_LIMIT:
+                    raise PackValueError("tuple is too large")
+                ret = msgpack_pack_tuple(&self.pk, L)
+                if ret == 0:
+                    for v in o:
+                        ret = self._pack(v, nest_limit-1)
+                        if ret != 0: break
+            elif PySet_CheckExact(o) if strict_types else PySet_Check(o):
+                L = len(o)
+                print "[set]"
+                if L > ITEM_LIMIT:
+                    raise PackValueError("set is too large")
+                ret = msgpack_pack_set(&self.pk, L)
                 if ret == 0:
                     for v in o:
                         ret = self._pack(v, nest_limit-1)
@@ -249,6 +281,25 @@ cdef class Packer(object):
                 o = self._default(o)
                 default_used = 1
                 continue
+            elif PyInstance_Check(o):
+                mnl = len(o.__module__)
+                cnl = len(o.__class__.__name__)
+                d = <dict>o.__dict__
+                L = len(d)
+                print "[instance]"
+                if L > ITEM_LIMIT:
+                    raise PackValueError("object is too large")
+                if mnl >= MODULE_CLASS_NAME_LIMIT or cnl >= MODULE_CLASS_NAME_LIMIT:
+                    raise PackValueError("module name or class name is too large" % (o.__module__, o.__class__.__name__))
+                rawval = o.__module__
+                rawval2 = o.__class__.__name__
+                ret = msgpack_pack_object(&self.pk, rawval, mnl, rawval2, cnl, L)
+                if ret == 0:
+                    for k, v in d.iteritems():
+                        ret = self._pack(k, nest_limit-1)
+                        if ret != 0: break
+                        ret = self._pack(v, nest_limit-1)
+                        if ret != 0: break
             else:
                 raise TypeError("can't serialize %r" % (o,))
             return ret

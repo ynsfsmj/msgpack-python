@@ -16,7 +16,8 @@
  *    limitations under the License.
  */
 
-#define MSGPACK_EMBED_STACK_SIZE  (1024)
+#define MSGPACK_EMBED_STACK_SIZE  (32)
+#define MSGPACK_PYTHON_NAME_MAX (128)
 #include "unpack_define.h"
 
 typedef struct unpack_user {
@@ -130,6 +131,122 @@ static inline int unpack_callback_true(unpack_user* u, msgpack_unpack_object* o)
 
 static inline int unpack_callback_false(unpack_user* u, msgpack_unpack_object* o)
 { Py_INCREF(Py_False); *o = Py_False; return 0; }
+
+// for diy : Tuple
+static inline int unpack_callback_in_diy_tuple(unpack_user* u, unsigned int n, msgpack_unpack_object* o)
+{
+    if (n > u->max_array_len) {
+        PyErr_Format(PyExc_ValueError, "%u exceeds max_array_len(%zd)", n, u->max_array_len);
+        return -1;
+    }
+    PyObject *p = PyTuple_New(n);
+    if (!p)
+        return -1;
+    *o = p;
+    return 0;
+}
+
+static inline int unpack_callback_in_diy_tuple_item(unpack_user* u, unsigned int current, msgpack_unpack_object* c, msgpack_unpack_object o)
+{
+    PyTuple_SET_ITEM(*c, current, o);
+    return 0;
+}
+
+static inline int unpack_callback_in_diy_tuple_end(unpack_user* u, msgpack_unpack_object* c)
+{
+    if (u->list_hook) {
+        PyObject *new_c = PyObject_CallFunctionObjArgs(u->list_hook, *c, NULL);
+        if (!new_c)
+            return -1;
+        Py_DECREF(*c);
+        *c = new_c;
+    }
+    return 0;
+}
+
+// for diy : Set
+static inline int unpack_callback_in_diy_set(unpack_user* u, unsigned int n, msgpack_unpack_object* o)
+{
+    if (n > u->max_array_len) {
+        PyErr_Format(PyExc_ValueError, "%u exceeds max_array_len(%zd)", n, u->max_array_len);
+        return -1;
+    }
+    PyObject *p = PySet_New(n);
+    if (!p)
+        return -1;
+    *o = p;
+    return 0;
+}
+
+static inline int unpack_callback_in_diy_set_item(unpack_user* u, unsigned int current, msgpack_unpack_object* c, msgpack_unpack_object o)
+{
+    PySet_Add(*c, o);
+    return 0;
+}
+
+static inline int unpack_callback_in_diy_set_end(unpack_user* u, msgpack_unpack_object* c)
+{
+    if (u->list_hook) {
+        PyObject *new_c = PyObject_CallFunctionObjArgs(u->list_hook, *c, NULL);
+        if (!new_c)
+            return -1;
+        Py_DECREF(*c);
+        *c = new_c;
+    }
+    return 0;
+}
+
+// for diy : Instance
+
+static inline int unpack_callback_in_diy_inst(unpack_user* u, unsigned int n, msgpack_unpack_object* o)
+{
+    if (n > u->max_map_len) {
+        PyErr_Format(PyExc_ValueError, "%u exceeds max_map_len(%zd)", n, u->max_map_len);
+        return -1;
+    }
+    PyObject *p = PyDict_New();
+    if (!p)
+        return -1;
+    *o = p;
+    return 0;
+}
+
+static inline int unpack_callback_in_diy_inst_prop(unpack_user* u, unsigned int current, msgpack_unpack_object* c, msgpack_unpack_object k, msgpack_unpack_object v)
+{
+    if (PyDict_SetItem(*c, k, v) == 0) {
+        Py_DECREF(k);
+        Py_DECREF(v);
+        return 0;
+    }
+    return -1;
+}
+
+static inline int unpack_callback_in_diy_inst_end(unpack_user* u, msgpack_unpack_object* c, char * modulename, char * classname)
+{
+    PyObject *m = PyImport_ImportModule(modulename);
+    if (!m){
+        PyErr_Format(PyExc_ValueError, "%u cannot import module(%s)", n, modulename);
+        return -1;
+    }
+    PyObject *mdict = PyModule_GetDict(m);
+    size_t class_len = strlen(classname);
+    PyObject *py_cls_name = PyBytes_FromStringAndSize(classname, class_len);
+    PyObject * py_class = PyDict_GetItem(mdict, py_cls_name);
+    if (!py_class) {
+        PyErr_Format(PyExc_ValueError, "%u cannot find class (%s) in module(%s)", n, classname, modulename);
+        return -1;
+    }
+    // now we get the class from module
+    PyObject* instance = PyInstance_NewRaw(py_class, *c);
+    if (!instance){
+        return -1;
+    }
+    Py_DECREF(*c);
+    *c = new_c;
+    return 0;
+}
+
+// Array
 
 static inline int unpack_callback_array(unpack_user* u, unsigned int n, msgpack_unpack_object* o)
 {
