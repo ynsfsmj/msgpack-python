@@ -175,6 +175,14 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     stack[top-1].ct = ct_; \
     stack[top-1].size  = count_;
 
+#define start_instance_in_diy(func, count_, ct_, module_, class_) \
+    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj, module_, class_) < 0) { goto _failed; } \
+    if((count_) == 0) { obj = stack[top-1].obj; \
+        if (construct_cb_in_diy(func##_end)(user, &obj, module_, class_) < 0) { goto _failed; } \
+        goto _push; } \
+    stack[top-1].ct = ct_; \
+    stack[top-1].size  = count_; \
+
 #define start_diy_type(subtype, ct_) \
     if (top >= MSGPACK_EMBED_STACK_SIZE) { goto _failed; } \
     stack[top].ct = ct_; \
@@ -373,7 +381,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 c = &stack[top-1];
                 if (c->is_diy){
                     if (c->diy_subtype == DIY_ST_TUPLE) {
-                        start_container_in_diy(_array, _msgpack_load16(uint16_t,n), CT_TUPLE_ITEM);
+                        start_container_in_diy(_tuple, _msgpack_load16(uint16_t,n), CT_TUPLE_ITEM);
                     } else if (c->diy_subtype == DIY_ST_SET) {
                         start_container_in_diy(_set, _msgpack_load16(uint16_t,n), CT_SET_ITEM);
                     } else {
@@ -386,7 +394,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 c = &stack[top-1];
                 if (c->is_diy){
                     if (c->diy_subtype == DIY_ST_TUPLE) {
-                        start_container_in_diy(_array, _msgpack_load32(uint32_t,n), CT_TUPLE_ITEM);
+                        start_container_in_diy(_tuple, _msgpack_load32(uint32_t,n), CT_TUPLE_ITEM);
                     } else if (c->diy_subtype == DIY_ST_SET) {
                         start_container_in_diy(_set, _msgpack_load32(uint32_t,n), CT_SET_ITEM);
                     } else {
@@ -400,7 +408,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 c = &stack[top-1];
                 if (c->is_diy){
                     if (c->diy_subtype == DIY_ST_INST) {
-                        start_container_in_diy(_inst, _msgpack_load16(uint16_t,n), CT_INST_DICT_KEY);
+                        start_instance_in_diy(_inst, _msgpack_load16(uint16_t,n), CT_INST_DICT_KEY, module_name, class_name);
                     } else {
                         goto _failed;
                     }
@@ -411,7 +419,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 c = &stack[top-1];
                 if (c->is_diy){
                     if (c->diy_subtype == DIY_ST_INST) {
-                        start_container_in_diy(_inst, _msgpack_load32(uint32_t,n), CT_INST_DICT_KEY);
+                        start_instance_in_diy(_inst, _msgpack_load32(uint32_t,n), CT_INST_DICT_KEY, module_name, class_name);
                     } else {
                         goto _failed;
                     }
