@@ -219,6 +219,7 @@ static inline int unpack_callback_in_diy_inst(unpack_user* u, unsigned int n, ms
 
 static inline int unpack_callback_in_diy_inst_prop(unpack_user* u, unsigned int current, msgpack_unpack_object* c, msgpack_unpack_object k, msgpack_unpack_object v)
 {
+    //printf("inst_prop %x %x %x", c, k, v);
     if (PyDict_SetItem(*c, k, v) == 0) {
         Py_DECREF(k);
         Py_DECREF(v);
@@ -229,6 +230,7 @@ static inline int unpack_callback_in_diy_inst_prop(unpack_user* u, unsigned int 
 
 static inline int unpack_callback_in_diy_inst_end(unpack_user* u, msgpack_unpack_object* c, char * modulename, char * classname)
 {
+    //printf("diy inst end 1\n");
     PyObject *m = PyImport_ImportModule(modulename);
     if (!m){
         PyErr_Format(PyExc_ValueError, "cannot import module(%s)", modulename);
@@ -249,6 +251,7 @@ static inline int unpack_callback_in_diy_inst_end(unpack_user* u, msgpack_unpack
     }
     Py_DECREF(*c);
     *c = instance;
+    //printf("diy inst end 2\n");
     return 0;
 }
 

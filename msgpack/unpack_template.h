@@ -22,8 +22,6 @@
 #endif
 #endif
 
-static char module_name[MSGPACK_PYTHON_NAME_MAX];
-static char class_name[MSGPACK_PYTHON_NAME_MAX];
 
 typedef struct unpack_stack {
     PyObject* obj;
@@ -33,9 +31,12 @@ typedef struct unpack_stack {
     PyObject* map_key;
     // for diy
     bool is_diy;
+    bool is_diy_container_inited;
     bool has_module_name;
     bool has_class_name;
     unsigned char diy_subtype;
+    char module_name[MSGPACK_PYTHON_NAME_MAX];
+    char class_name[MSGPACK_PYTHON_NAME_MAX];
 } unpack_stack;
 
 struct unpack_context {
@@ -131,7 +132,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     goto _fixed_trail_again
 
 #define start_container(func, count_, ct_) \
-    if(top >= MSGPACK_EMBED_STACK_SIZE) { goto _failed; } /* FIXME */ \
+    if(top >= MSGPACK_EMBED_STACK_SIZE) { goto _failed; } \
     if(construct_cb(func)(user, count_, &stack[top].obj) < 0) { goto _failed; } \
     if((count_) == 0) { obj = stack[top].obj; \
         if (construct_cb(func##_end)(user, &obj) < 0) { goto _failed; } \
@@ -140,6 +141,9 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     stack[top].size  = count_; \
     stack[top].count = 0; \
     stack[top].is_diy = false; \
+    stack[top].is_diy_container_inited = false; \
+    stack[top].has_module_name = false; \
+    stack[top].has_class_name = false; \
     ++top; \
     /*printf("container %d count %d stack %d\n",stack[top].obj,count_,top);*/ \
     /*printf("stack push %d\n", top);*/ \
@@ -171,23 +175,30 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj) < 0) { goto _failed; } \
     if((count_) == 0) { obj = stack[top-1].obj; \
         if (construct_cb_in_diy(func##_end)(user, &obj) < 0) { goto _failed; } \
+        --top; \
         goto _push; } \
     stack[top-1].ct = ct_; \
-    stack[top-1].size  = count_;
+    stack[top-1].size  = count_; \
+    stack[top-1].is_diy_container_inited = true; \
+    goto _header_again
 
 #define start_instance_in_diy(func, count_, ct_, module_, class_) \
     if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj) < 0) { goto _failed; } \
     if((count_) == 0) { obj = stack[top-1].obj; \
         if (construct_cb_in_diy(func##_end)(user, &obj, module_, class_) < 0) { goto _failed; } \
+        --top; \
         goto _push; } \
     stack[top-1].ct = ct_; \
-    stack[top-1].size  = count_;
+    stack[top-1].size  = count_; \
+    stack[top-1].is_diy_container_inited = true; \
+    goto _header_again
 
 #define start_diy_type(subtype, ct_) \
     if (top >= MSGPACK_EMBED_STACK_SIZE) { goto _failed; } \
     stack[top].ct = ct_; \
     stack[top].count = 0; \
     stack[top].is_diy = true; \
+    stack[top].is_diy_container_inited = false; \
     stack[top].diy_subtype = subtype; \
     stack[top].has_module_name = false; \
     stack[top].has_class_name = false; \
@@ -212,6 +223,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     do {
         switch(cs) {
         case CS_HEADER:
+            //printf("do CS_HEADER %d %x\n", *p, p);
             SWITCH_RANGE_BEGIN
             SWITCH_RANGE(0x00, 0x7f)  // Positive Fixnum
                 push_fixed_value(_uint8, *(uint8_t*)p);
@@ -272,11 +284,67 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                     goto _failed;
                 }
             SWITCH_RANGE(0xa0, 0xbf)  // FixRaw
-                again_fixed_trail_if_zero(ACS_RAW_VALUE, ((unsigned int)*p & 0x1f), _raw_zero);
+                //printf("FixRaw\n");
+                if (top == 0) {
+                    again_fixed_trail_if_zero(ACS_RAW_VALUE, ((unsigned int)*p & 0x1f), _raw_zero);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy){
+                        if (! c->has_module_name) {
+                            memcpy(c->module_name, p+1, ((unsigned int)*p & 0x1f));
+                            c->module_name[((unsigned int)*p & 0x1f)] = '\0';
+                            c->has_module_name = true;
+                            c->ct = CT_INST_CLASS;
+                            //printf("copy module name %s\n", c->module_name);
+                        } else if (! c->has_class_name) {
+                            memcpy(c->class_name, p+1, ((unsigned int)*p & 0x1f));
+                            c->class_name[((unsigned int)*p & 0x1f)] = '\0';
+                            c->has_class_name = true;
+                            c->ct = CT_INST_DICT;
+                            //printf("copy class name %s\n", c->class_name);
+                        } else {
+                            again_fixed_trail_if_zero(ACS_RAW_VALUE, ((unsigned int)*p & 0x1f), _raw_zero);
+                        }
+                        trail = ((unsigned int)*p & 0x1f);
+                        cs = ACS_RAW_VALUE;
+                        goto _fixed_trail_again;
+                    } else {
+                        again_fixed_trail_if_zero(ACS_RAW_VALUE, ((unsigned int)*p & 0x1f), _raw_zero);
+                    }
+                }
             SWITCH_RANGE(0x90, 0x9f)  // FixArray
-                start_container(_array, ((unsigned int)*p) & 0x0f, CT_ARRAY_ITEM);
+                if (top == 0) {
+                    start_container(_array, ((unsigned int)*p) & 0x0f, CT_ARRAY_ITEM);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy && !c->is_diy_container_inited){
+                        if (c->diy_subtype == DIY_ST_TUPLE) {
+                            start_container_in_diy(_tuple, ((unsigned int)*p) & 0x0f, CT_TUPLE_ITEM);
+                        } else if (c->diy_subtype == DIY_ST_SET) {
+                            start_container_in_diy(_set, ((unsigned int)*p) & 0x0f, CT_SET_ITEM);
+                        } else {
+                            goto _failed;
+                        }
+                    } else {
+                        start_container(_array, ((unsigned int)*p) & 0x0f, CT_ARRAY_ITEM);
+                    }
+                }
             SWITCH_RANGE(0x80, 0x8f)  // FixMap
-                start_container(_map, ((unsigned int)*p) & 0x0f, CT_MAP_KEY);
+                //printf("FixMap\n");
+                if (top == 0) {
+                    start_container(_map, ((unsigned int)*p) & 0x0f, CT_MAP_KEY);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy && !c->is_diy_container_inited){
+                        if (c->diy_subtype == DIY_ST_INST) {
+                            start_instance_in_diy(_inst, ((unsigned int)*p) & 0x0f, CT_INST_DICT_KEY, c->module_name, c->class_name);
+                        } else {
+                            goto _failed;
+                        }
+                    } else {
+                        start_container(_map, ((unsigned int)*p) & 0x0f, CT_MAP_KEY);
+                    }
+                }
 
             SWITCH_RANGE_DEFAULT
                 goto _failed;
@@ -288,6 +356,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
             ++p;
 
         default:
+            //printf("do default %x\n", cs);
             if((size_t)(pe - p) < trail) { goto _out; }
             n = p;  p += trail - 1; // 移动数据指针到下一个标志头的前一字节
             switch(cs) {
@@ -335,25 +404,32 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 push_fixed_value(_int64, _msgpack_load64(int64_t,n));
 
             case CS_BIN_8:
-                c = &stack[top-1];
-                if (c->is_diy){
-                    if (! c->has_module_name) {
-                        memcpy(module_name, n, *(uint8_t*)n);
-                        module_name[*(uint8_t*)n] = '\n';
-                        c->has_module_name = true;
-                        c->ct = CT_INST_CLASS;
-                    } else if (! c->has_class_name) {
-                        memcpy(class_name, n, *(uint8_t*)n);
-                        class_name[*(uint8_t*)n] = '\n';
-                        c->has_class_name = true;
-                        c->ct = CT_INST_DICT;
-                    } else {
-                        goto _failed;
-                    }
-                    //
-                    goto _header_again;
-                } else {
+                //printf("default CS_BIN top %d %x\n", top, cs);
+                if (top == 0) {
                     again_fixed_trail_if_zero(ACS_BIN_VALUE, *(uint8_t*)n, _bin_zero);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy){
+                        if (! c->has_module_name) {
+                            memcpy(c->module_name, n, *(uint8_t*)n);
+                            c->module_name[*(uint8_t*)n] = '\n';
+                            c->has_module_name = true;
+                            c->ct = CT_INST_CLASS;
+                            //printf("copy module name %s\n", c->module_name);
+                        } else if (! c->has_class_name) {
+                            memcpy(c->class_name, n, *(uint8_t*)n);
+                            c->class_name[*(uint8_t*)n] = '\n';
+                            c->has_class_name = true;
+                            c->ct = CT_INST_DICT;
+                            //printf("copy class name %s\n", c->class_name);
+                        } else {
+                            goto _failed;
+                        }
+                        //
+                        goto _header_again;
+                    } else {
+                        again_fixed_trail_if_zero(ACS_BIN_VALUE, *(uint8_t*)n, _bin_zero);
+                    }
                 }
             case CS_BIN_16:
                 again_fixed_trail_if_zero(ACS_BIN_VALUE, _msgpack_load16(uint16_t,n), _bin_zero);
@@ -364,12 +440,44 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 push_variable_value(_bin, data, n, trail);
 
             case CS_RAW_8:
-                again_fixed_trail_if_zero(ACS_RAW_VALUE, *(uint8_t*)n, _raw_zero);
+                //printf("default CS_RAW_8 top %d %x\n", top, cs);
+                if (top == 0) {
+                    again_fixed_trail_if_zero(ACS_RAW_VALUE, *(uint8_t*)n, _raw_zero);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy){
+                        if (! c->has_module_name) {
+                            memcpy(c->module_name, n, *(uint8_t*)n);
+                            c->module_name[*(uint8_t*)n] = '\n';
+                            c->has_module_name = true;
+                            c->ct = CT_INST_CLASS;
+                            //printf("copy module name %s\n", c->module_name);
+                        } else if (! c->has_class_name) {
+                            memcpy(c->class_name, n, *(uint8_t*)n);
+                            c->class_name[*(uint8_t*)n] = '\n';
+                            c->has_class_name = true;
+                            c->ct = CT_INST_DICT;
+                            //printf("copy class name %s\n", c->class_name);
+                        } else {
+                            goto _failed;
+                        }
+                        //
+                        goto _header_again;
+                    } else {
+                        again_fixed_trail_if_zero(ACS_RAW_VALUE, *(uint8_t*)n, _raw_zero);
+                    }
+                }
             case CS_RAW_16:
                 again_fixed_trail_if_zero(ACS_RAW_VALUE, _msgpack_load16(uint16_t,n), _raw_zero);
             case CS_RAW_32:
                 again_fixed_trail_if_zero(ACS_RAW_VALUE, _msgpack_load32(uint32_t,n), _raw_zero);
             case ACS_RAW_VALUE:
+                if (top > 0) {
+                    c = &stack[top-1];
+                    if (c->is_diy and !c->has_class_name){
+                        goto _push;
+                    }
+                }
             _raw_zero:
                 push_variable_value(_raw, data, n, trail);
 
@@ -378,53 +486,69 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                 push_variable_value(_ext, data, n, trail);
 
             case CS_ARRAY_16:
-                c = &stack[top-1];
-                if (c->is_diy){
-                    if (c->diy_subtype == DIY_ST_TUPLE) {
-                        start_container_in_diy(_tuple, _msgpack_load16(uint16_t,n), CT_TUPLE_ITEM);
-                    } else if (c->diy_subtype == DIY_ST_SET) {
-                        start_container_in_diy(_set, _msgpack_load16(uint16_t,n), CT_SET_ITEM);
-                    } else {
-                        goto _failed;
-                    }
-                } else {
+                if (top == 0) {
                     start_container(_array, _msgpack_load16(uint16_t,n), CT_ARRAY_ITEM);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy && !c->is_diy_container_inited){
+                        if (c->diy_subtype == DIY_ST_TUPLE) {
+                            start_container_in_diy(_tuple, _msgpack_load16(uint16_t,n), CT_TUPLE_ITEM);
+                        } else if (c->diy_subtype == DIY_ST_SET) {
+                            start_container_in_diy(_set, _msgpack_load16(uint16_t,n), CT_SET_ITEM);
+                        } else {
+                            goto _failed;
+                        }
+                    } else {
+                        start_container(_array, _msgpack_load16(uint16_t,n), CT_ARRAY_ITEM);
+                    }
                 }
             case CS_ARRAY_32:
-                c = &stack[top-1];
-                if (c->is_diy){
-                    if (c->diy_subtype == DIY_ST_TUPLE) {
-                        start_container_in_diy(_tuple, _msgpack_load32(uint32_t,n), CT_TUPLE_ITEM);
-                    } else if (c->diy_subtype == DIY_ST_SET) {
-                        start_container_in_diy(_set, _msgpack_load32(uint32_t,n), CT_SET_ITEM);
-                    } else {
-                        goto _failed;
-                    }
-                } else {
+                if (top == 0) {
                     start_container(_array, _msgpack_load32(uint32_t,n), CT_ARRAY_ITEM);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy && !c->is_diy_container_inited){
+                        if (c->diy_subtype == DIY_ST_TUPLE) {
+                            start_container_in_diy(_tuple, _msgpack_load32(uint32_t,n), CT_TUPLE_ITEM);
+                        } else if (c->diy_subtype == DIY_ST_SET) {
+                            start_container_in_diy(_set, _msgpack_load32(uint32_t,n), CT_SET_ITEM);
+                        } else {
+                            goto _failed;
+                        }
+                    } else {
+                        start_container(_array, _msgpack_load32(uint32_t,n), CT_ARRAY_ITEM);
+                    }
                 }
                 
             case CS_MAP_16:
-                c = &stack[top-1];
-                if (c->is_diy){
-                    if (c->diy_subtype == DIY_ST_INST) {
-                        start_instance_in_diy(_inst, _msgpack_load16(uint16_t,n), CT_INST_DICT_KEY, module_name, class_name);
-                    } else {
-                        goto _failed;
-                    }
-                } else {
+                if (top == 0) {
                     start_container(_map, _msgpack_load16(uint16_t,n), CT_MAP_KEY);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy && !c->is_diy_container_inited){
+                        if (c->diy_subtype == DIY_ST_INST) {
+                            start_instance_in_diy(_inst, _msgpack_load16(uint16_t,n), CT_INST_DICT_KEY, c->module_name, c->class_name);
+                        } else {
+                            goto _failed;
+                        }
+                    } else {
+                        start_container(_map, _msgpack_load16(uint16_t,n), CT_MAP_KEY);
+                    }
                 }
             case CS_MAP_32:
-                c = &stack[top-1];
-                if (c->is_diy){
-                    if (c->diy_subtype == DIY_ST_INST) {
-                        start_instance_in_diy(_inst, _msgpack_load32(uint32_t,n), CT_INST_DICT_KEY, module_name, class_name);
-                    } else {
-                        goto _failed;
-                    }
-                } else {
+                if (top == 0) {
                     start_container(_map, _msgpack_load32(uint32_t,n), CT_MAP_KEY);
+                } else {
+                    c = &stack[top-1];
+                    if (c->is_diy && !c->is_diy_container_inited){
+                        if (c->diy_subtype == DIY_ST_INST) {
+                            start_instance_in_diy(_inst, _msgpack_load32(uint32_t,n), CT_INST_DICT_KEY, c->module_name, c->class_name);
+                        } else {
+                            goto _failed;
+                        }
+                    } else {
+                        start_container(_map, _msgpack_load32(uint32_t,n), CT_MAP_KEY);
+                    }
                 }
 
             default:
@@ -433,8 +557,10 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
         }
 
 _push:
+    //printf("push top %d\n", top);
     if(top == 0) { goto _finish; }
     c = &stack[top-1];
+    //printf("push ct %d\n", c->ct);
     switch(c->ct) {
     case CT_ARRAY_ITEM:
         if(construct_cb(_array_item)(user, c->count, &c->obj, obj) < 0) { goto _failed; }
@@ -462,11 +588,16 @@ _push:
         c->ct = CT_MAP_KEY;
         goto _header_again;
     // below is for diy
+    case CT_DIY_TYPE:
+        goto _header_again;
     case CT_TUPLE_ITEM:
+        //printf("push CT_TUPLE_ITEM\n");
         if(construct_cb_in_diy(_tuple_item)(user, c->count, &c->obj, obj) < 0) { goto _failed; }
         if(++c->count == c->size) {
             obj = c->obj;
+            //printf("push CT_TUPLE_ITEM end\n");
             if (construct_cb_in_diy(_tuple_end)(user, &obj) < 0) { goto _failed; }
+            //printf("push CT_TUPLE_ITEM ended\n");
             --top;
             goto _push;
         }
@@ -481,30 +612,38 @@ _push:
         }
         goto _header_again;
     case CT_INST_DICT_KEY:
+        //printf("push INST_KEY %d\n", obj);
         c->map_key = obj;
         c->ct = CT_INST_DICT_VALUE;
         goto _header_again;
     case CT_INST_DICT_VALUE:
+        //printf("push INST_VALUE 1 %d %d %d\n", &c->obj, c->map_key, obj);
         if(construct_cb_in_diy(_inst_prop)(user, c->count, &c->obj, c->map_key, obj) < 0) { goto _failed; }
+        //printf("push INST_VALUE 2\n");
         if(++c->count == c->size) {
             obj = c->obj;
-            if (construct_cb_in_diy(_inst_end)(user, &obj, module_name, class_name) < 0) { goto _failed; }
+            if (construct_cb_in_diy(_inst_end)(user, &obj, c->module_name, c->class_name) < 0) { goto _failed; }
             --top;
             goto _push;
         }
-        c->ct = CT_MAP_KEY;
+        c->ct = CT_INST_DICT_KEY;
+        //printf("push INST_VALUE 3\n");
         goto _header_again;
     case CT_INST_MODULE:
+        //printf("push INST_MODULE\n");
         goto _header_again;
     case CT_INST_CLASS:
+        //printf("push INST_CLASS\n");
         goto _header_again;
     case CT_INST_DICT:
+        //printf("push INST_DICT\n");
         goto _header_again;
     default:
         goto _failed;
     }
 
 _header_again:
+        //printf("header again\n");
         cs = CS_HEADER;
         ++p;
     } while(p != pe);

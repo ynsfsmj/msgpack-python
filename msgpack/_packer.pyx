@@ -252,7 +252,6 @@ cdef class Packer(object):
                         if ret != 0: break
             elif PyTuple_CheckExact(o) if strict_types else PyTuple_Check(o):
                 L = len(o)
-                print "[tuple]"
                 if L > ITEM_LIMIT:
                     raise PackValueError("tuple is too large")
                 ret = msgpack_pack_tuple(&self.pk, L)
@@ -264,7 +263,6 @@ cdef class Packer(object):
                         if ret != 0: break
             elif PySet_CheckExact(o) if strict_types else PySet_Check(o):
                 L = len(o)
-                print "[set]"
                 if L > ITEM_LIMIT:
                     raise PackValueError("set is too large")
                 ret = msgpack_pack_set(&self.pk, L)
@@ -294,7 +292,6 @@ cdef class Packer(object):
                 cnl = len(o.__class__.__name__)
                 d = <dict>o.__dict__
                 L = len(d)
-                print "[instance]"
                 if L > ITEM_LIMIT:
                     raise PackValueError("object is too large")
                 if mnl >= MODULE_CLASS_NAME_LIMIT or cnl >= MODULE_CLASS_NAME_LIMIT:
