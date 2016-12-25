@@ -168,28 +168,19 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
     construct && unpack_callback_in_diy ## name
 
 #define start_container_in_diy(func, count_, ct_) \
-    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj, ) < 0) { goto _failed; } \
+    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj) < 0) { goto _failed; } \
     if((count_) == 0) { obj = stack[top-1].obj; \
         if (construct_cb_in_diy(func##_end)(user, &obj) < 0) { goto _failed; } \
         goto _push; } \
     stack[top-1].ct = ct_; \
     stack[top-1].size  = count_;
 
-#define start_instance_in_diy(func, count_, ct_, module_, class_) \
-    if(construct_cb_in_diy(func)(user, count_, &stack[top-1].obj, module_, class_) < 0) { goto _failed; } \
-    if((count_) == 0) { obj = stack[top-1].obj; \
-        if (construct_cb_in_diy(func##_end)(user, &obj) < 0) { goto _failed; } \
-        goto _push; } \
-    stack[top-1].ct = ct_; \
-    stack[top-1].size  = count_; \
-
 #define start_diy_type(subtype, ct_) \
     if (top >= MSGPACK_EMBED_STACK_SIZE) { goto _failed; } \
     stack[top].ct = ct_; \
-    stack[top].size  = count_; \
     stack[top].count = 0; \
     stack[top].is_diy = true; \
-    stack[top].diy_subtype = suttype; \
+    stack[top].diy_subtype = subtype; \
     stack[top].has_module_name = false; \
     stack[top].has_class_name = false; \
     ++top; \

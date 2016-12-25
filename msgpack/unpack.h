@@ -171,7 +171,7 @@ static inline int unpack_callback_in_diy_set(unpack_user* u, unsigned int n, msg
         PyErr_Format(PyExc_ValueError, "%u exceeds max_array_len(%zd)", n, u->max_array_len);
         return -1;
     }
-    PyObject *p = PySet_New(n);
+    PyObject *p = PyTuple_New(n);
     if (!p)
         return -1;
     *o = p;
@@ -180,12 +180,18 @@ static inline int unpack_callback_in_diy_set(unpack_user* u, unsigned int n, msg
 
 static inline int unpack_callback_in_diy_set_item(unpack_user* u, unsigned int current, msgpack_unpack_object* c, msgpack_unpack_object o)
 {
-    PySet_Add(*c, o);
+    PyTuple_SET_ITEM(*c, current, o);
     return 0;
 }
 
 static inline int unpack_callback_in_diy_set_end(unpack_user* u, msgpack_unpack_object* c)
 {
+    PyObject *p = PySet_New(*c);
+    if (!p){
+        return -1;
+    }
+    Py_DECREF(*c);
+    *c = p;
     if (u->list_hook) {
         PyObject *new_c = PyObject_CallFunctionObjArgs(u->list_hook, *c, NULL);
         if (!new_c)
@@ -225,7 +231,7 @@ static inline int unpack_callback_in_diy_inst_end(unpack_user* u, msgpack_unpack
 {
     PyObject *m = PyImport_ImportModule(modulename);
     if (!m){
-        PyErr_Format(PyExc_ValueError, "%u cannot import module(%s)", n, modulename);
+        PyErr_Format(PyExc_ValueError, "cannot import module(%s)", modulename);
         return -1;
     }
     PyObject *mdict = PyModule_GetDict(m);
@@ -233,7 +239,7 @@ static inline int unpack_callback_in_diy_inst_end(unpack_user* u, msgpack_unpack
     PyObject *py_cls_name = PyBytes_FromStringAndSize(classname, class_len);
     PyObject * py_class = PyDict_GetItem(mdict, py_cls_name);
     if (!py_class) {
-        PyErr_Format(PyExc_ValueError, "%u cannot find class (%s) in module(%s)", n, classname, modulename);
+        PyErr_Format(PyExc_ValueError, "cannot find class (%s) in module(%s)", classname, modulename);
         return -1;
     }
     // now we get the class from module
@@ -242,7 +248,7 @@ static inline int unpack_callback_in_diy_inst_end(unpack_user* u, msgpack_unpack
         return -1;
     }
     Py_DECREF(*c);
-    *c = new_c;
+    *c = instance;
     return 0;
 }
 
