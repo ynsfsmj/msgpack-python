@@ -15,8 +15,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-#define MSGPACK_EMBED_STACK_SIZE  (32)
+#define MSGPACK_EMBED_STACK_SIZE  (16)
 #define MSGPACK_PYTHON_NAME_MAX (128)
 #include "unpack_define.h"
 
@@ -230,28 +229,45 @@ static inline int unpack_callback_in_diy_inst_prop(unpack_user* u, unsigned int 
 
 static inline int unpack_callback_in_diy_inst_end(unpack_user* u, msgpack_unpack_object* c, char * modulename, char * classname)
 {
-    //printf("diy inst end 1\n");
-    PyObject *m = PyImport_ImportModule(modulename);
-    if (!m){
+    PyObject* instance;
+    size_t module_len = strlen(modulename);
+    PyObject *temp_mname = PyBytes_FromStringAndSize(modulename, module_len);
+    PyObject *temp_module = PyImport_Import(temp_mname);
+    Py_DECREF(temp_mname);
+    if (!temp_module){
         PyErr_Format(PyExc_ValueError, "cannot import module(%s)", modulename);
         return -1;
     }
-    PyObject *mdict = PyModule_GetDict(m);
-    size_t class_len = strlen(classname);
-    PyObject *py_cls_name = PyBytes_FromStringAndSize(classname, class_len);
-    PyObject * py_class = PyDict_GetItem(mdict, py_cls_name);
+    PyObject *temp_mdict = PyModule_GetDict(temp_module);
+    Py_DECREF(temp_module);
+    PyObject * py_class = PyDict_GetItemString(temp_mdict, classname);
+    
     if (!py_class) {
         PyErr_Format(PyExc_ValueError, "cannot find class (%s) in module(%s)", classname, modulename);
         return -1;
     }
+
+    if (PyType_Check(py_class)) {
+        //printf("get new style class\n");
+        // instance = PyObject_CallObject(py_class, NULL);
+        PyObject * temp_new_str = PyString_FromString("__new__");
+        instance = PyObject_CallMethodObjArgs(py_class, temp_new_str, py_class, NULL);
+        Py_DECREF(temp_new_str);
+        if (PyObject_SetAttrString(instance, "__dict__", *c) < 0) {
+            PyErr_Format(PyExc_ValueError, "cannot set __dict__");
+            return -1;
+        }
+    } else {
+        // printf("get old style class\n");
+        instance = PyInstance_NewRaw(py_class, *c);
+    }
     // now we get the class from module
-    PyObject* instance = PyInstance_NewRaw(py_class, *c);
     if (!instance){
+        PyErr_Format(PyExc_ValueError, "cannot re-instantialize object (%s)", classname);
         return -1;
     }
     Py_DECREF(*c);
     *c = instance;
-    //printf("diy inst end 2\n");
     return 0;
 }
 
@@ -345,6 +361,12 @@ static inline int unpack_callback_map_end(unpack_user* u, msgpack_unpack_object*
 
 static inline int unpack_callback_raw(unpack_user* u, const char* b, const char* p, unsigned int l, msgpack_unpack_object* o)
 {
+    //test
+    //char toprint[128];
+    //strncpy(toprint, p, l);
+    //toprint[l] = '\0';
+    //printf("%s %d\n", toprint, l);
+
     if (l > u->max_str_len) {
         PyErr_Format(PyExc_ValueError, "%u exceeds max_str_len(%zd)", l, u->max_str_len);
         return -1;

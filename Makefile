@@ -1,4 +1,4 @@
-.PHONY: test all python3
+.PHONY: test all python2
 
 all: cython
 	python setup.py build_ext -i -f

@@ -4,6 +4,8 @@ from msgpack.exceptions import *
 
 from collections import namedtuple
 
+print "my msgpack"
+
 
 class ExtType(namedtuple('ExtType', 'code data')):
     """ExtType represents ext type in msgpack."""

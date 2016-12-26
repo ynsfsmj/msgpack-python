@@ -289,7 +289,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                     again_fixed_trail_if_zero(ACS_RAW_VALUE, ((unsigned int)*p & 0x1f), _raw_zero);
                 } else {
                     c = &stack[top-1];
-                    if (c->is_diy){
+                    if (c->is_diy && c->diy_subtype == DIY_ST_INST){
                         if (! c->has_module_name) {
                             memcpy(c->module_name, p+1, ((unsigned int)*p & 0x1f));
                             c->module_name[((unsigned int)*p & 0x1f)] = '\0';
@@ -307,18 +307,21 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                         }
                         trail = ((unsigned int)*p & 0x1f);
                         cs = ACS_RAW_VALUE;
-                        goto _fixed_trail_again;
+                        p += trail;
+                        goto _push;
                     } else {
                         again_fixed_trail_if_zero(ACS_RAW_VALUE, ((unsigned int)*p & 0x1f), _raw_zero);
                     }
                 }
             SWITCH_RANGE(0x90, 0x9f)  // FixArray
+                //printf("FixArray\n");
                 if (top == 0) {
                     start_container(_array, ((unsigned int)*p) & 0x0f, CT_ARRAY_ITEM);
                 } else {
                     c = &stack[top-1];
                     if (c->is_diy && !c->is_diy_container_inited){
                         if (c->diy_subtype == DIY_ST_TUPLE) {
+                            //printf("FixArray Tuple\n");
                             start_container_in_diy(_tuple, ((unsigned int)*p) & 0x0f, CT_TUPLE_ITEM);
                         } else if (c->diy_subtype == DIY_ST_SET) {
                             start_container_in_diy(_set, ((unsigned int)*p) & 0x0f, CT_SET_ITEM);
@@ -409,7 +412,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                     again_fixed_trail_if_zero(ACS_BIN_VALUE, *(uint8_t*)n, _bin_zero);
                 } else {
                     c = &stack[top-1];
-                    if (c->is_diy){
+                    if (c->is_diy && c->diy_subtype == DIY_ST_INST){
                         if (! c->has_module_name) {
                             memcpy(c->module_name, n, *(uint8_t*)n);
                             c->module_name[*(uint8_t*)n] = '\n';
@@ -445,7 +448,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
                     again_fixed_trail_if_zero(ACS_RAW_VALUE, *(uint8_t*)n, _raw_zero);
                 } else {
                     c = &stack[top-1];
-                    if (c->is_diy){
+                    if (c->is_diy && c->diy_subtype == DIY_ST_INST){
                         if (! c->has_module_name) {
                             memcpy(c->module_name, n, *(uint8_t*)n);
                             c->module_name[*(uint8_t*)n] = '\n';
@@ -474,7 +477,7 @@ static inline int unpack_execute(unpack_context* ctx, const char* data, Py_ssize
             case ACS_RAW_VALUE:
                 if (top > 0) {
                     c = &stack[top-1];
-                    if (c->is_diy and !c->has_class_name){
+                    if (c->is_diy && c->diy_subtype == DIY_ST_INST && !c->has_class_name){
                         goto _push;
                     }
                 }

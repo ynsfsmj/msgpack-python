@@ -3,11 +3,15 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import pytest
 
+import msgpack
+
 from msgpack import (
     packb, unpackb, Packer, Unpacker, ExtType,
-    PackOverflowError, PackValueError, UnpackValueError,
 )
 
+from msgpack import (
+    PackOverflowError, PackValueError, UnpackValueError,
+)
 
 def test_integer():
     x = -(2 ** 63)

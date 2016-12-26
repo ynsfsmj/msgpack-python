@@ -48,7 +48,7 @@ cdef extern from "pack.h":
     int msgpack_pack_raw_body(msgpack_packer* pk, char* body, size_t l)
     int msgpack_pack_ext(msgpack_packer* pk, char typecode, size_t l)
 
-cdef int DEFAULT_RECURSE_LIMIT=32
+cdef int DEFAULT_RECURSE_LIMIT=16
 cdef size_t ITEM_LIMIT = (2**32)-1
 cdef size_t MODULE_CLASS_NAME_LIMIT = 128
 
@@ -287,14 +287,15 @@ cdef class Packer(object):
                 o = self._default(o)
                 default_used = 1
                 continue
-            elif PyInstance_Check(o):
+            #elif PyInstance_Check(o) or isinstance(o, object):
+            elif PyInstance_Check(o) or (PyObject_IsInstance(o, object) and PyObject_HasAttr(o, "__dict__")):
                 mnl = len(o.__module__)
                 cnl = len(o.__class__.__name__)
                 d = <dict>o.__dict__
                 L = len(d)
                 if L > ITEM_LIMIT:
                     raise PackValueError("object is too large")
-                if mnl >= MODULE_CLASS_NAME_LIMIT or cnl >= MODULE_CLASS_NAME_LIMIT:
+                if mnl >= MODULE_CLASS_NAME_LIMIT or cnl >= MODULE_CLASS_NAME_LIMIT or mnl <= 0 or cnl <= 0:
                     # we limit the name length to less than 128 to make sure the bin type is (0xc4)
                     raise PackValueError("module name or class name is too large" % (o.__module__, o.__class__.__name__))
                 rawval = o.__module__
