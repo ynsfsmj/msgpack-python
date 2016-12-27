@@ -32,6 +32,19 @@ Here is the benchmark results on my x64 server, each for 200000 times:
    oldobj2 ::  pymsgpack: 7.161    cpickle 27.415  ratio 3.82807841966
 
 
+How to use:
+
+1. git clone [this repo] and cd into it
+
+2. make
+
+3. sudo ./setup.py install
+
+4. import pymsgpack in your script and use like msgpack
+
+compatible_mode is available for communication with other msgpack interface.
+
+
 =======================
 MessagePack for Python
 =======================
