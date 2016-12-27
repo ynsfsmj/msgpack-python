@@ -18,7 +18,7 @@
 #ifndef PYMSGPACK_UNPACK_DEFINE_H__
 #define PYMSGPACK_UNPACK_DEFINE_H__
 
-#include "msgpack/sysdep.h"
+#include "pymsgpack/sysdep.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
