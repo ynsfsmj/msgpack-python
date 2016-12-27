@@ -2,8 +2,8 @@
 # coding: utf-8
 
 import io
-from msgpack import Unpacker, BufferFull
-from msgpack.exceptions import OutOfData
+from pymsgpack import Unpacker, BufferFull
+from pymsgpack.exceptions import OutOfData
 from pytest import raises
 
 

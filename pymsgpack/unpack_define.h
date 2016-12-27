@@ -15,8 +15,8 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#ifndef MSGPACK_UNPACK_DEFINE_H__
-#define MSGPACK_UNPACK_DEFINE_H__
+#ifndef PYMSGPACK_UNPACK_DEFINE_H__
+#define PYMSGPACK_UNPACK_DEFINE_H__
 
 #include "msgpack/sysdep.h"
 #include <stdlib.h>

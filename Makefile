@@ -4,7 +4,7 @@ all: cython
 	python setup.py build_ext -i -f
 
 cython:
-	cython --cplus msgpack/*.pyx
+	cython --cplus pymsgpack/*.pyx
 
 python3: cython
 	python3 setup.py build_ext -i -f
@@ -15,5 +15,5 @@ test:
 .PHONY: clean
 clean:
 	rm -rf build
-	rm msgpack/*.so
-	rm -rf msgpack/__pycache__
+	rm pymsgpack/*.so
+	rm -rf pymsgpack/__pycache__

@@ -3,13 +3,13 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import pytest
 
-import msgpack
+import pymsgpack
 
-from msgpack import (
+from pymsgpack import (
     packb, unpackb, Packer, Unpacker, ExtType,
 )
 
-from msgpack import (
+from pymsgpack import (
     PackOverflowError, PackValueError, UnpackValueError,
 )
 

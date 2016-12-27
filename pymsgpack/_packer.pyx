@@ -1,7 +1,7 @@
 # coding: utf-8
 #cython: embedsignature=True
 
-# 现在我们��? msgpack 支持简单的 Python 对象的序列化
+# 现在我们��? pymsgpack 支持简单的 Python 对象的序列化
 # msgpack 中的 0xc1 类型保留无用，我们拿过来作为自定义的类型头前缀
 # 我们的自定义头命名为 diy，第一个字节为 0xc1
 # diy 的第二个字节表示子类型，定义如下��?
@@ -12,8 +12,8 @@
 
 from cpython cimport *
 
-from msgpack.exceptions import PackValueError, PackOverflowError
-from msgpack import ExtType
+from pymsgpack.exceptions import PackValueError, PackOverflowError
+from pymsgpack import ExtType
 
 
 cdef extern from "Python.h":

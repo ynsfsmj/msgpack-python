@@ -1,11 +1,10 @@
 # coding: utf-8
-from msgpack._version import version
-from msgpack.exceptions import *
+from pymsgpack._version import version
+from pymsgpack.exceptions import *
 
 from collections import namedtuple
 
-print "my msgpack"
-
+print "pymsgpack"
 
 class ExtType(namedtuple('ExtType', 'code data')):
     """ExtType represents ext type in msgpack."""
@@ -21,10 +20,10 @@ class ExtType(namedtuple('ExtType', 'code data')):
 
 import os
 try:
-    from msgpack._packer import Packer
-    from msgpack._unpacker import unpack, unpackb, Unpacker
+    from pymsgpack._packer import Packer
+    from pymsgpack._unpacker import unpack, unpackb, Unpacker
 except ImportError:
-    print "Error: failed to import msgpack, no fallback available"
+    print "Error: failed to import pymsgpack, no fallback available"
 
 
 def pack(o, stream, **kwargs):

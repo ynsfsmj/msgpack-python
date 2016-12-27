@@ -30,13 +30,13 @@ from libc.stdlib cimport *
 from libc.string cimport *
 from libc.limits cimport *
 
-from msgpack.exceptions import (
+from pymsgpack.exceptions import (
     BufferFull,
     OutOfData,
     UnpackValueError,
     ExtraData,
 )
-from msgpack import ExtType
+from pymsgpack import ExtType
 
 
 cdef extern from "unpack.h":

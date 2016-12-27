@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from collections import namedtuple
-from msgpack import packb, unpackb
+from pymsgpack import packb, unpackb
 
 
 def test_namedtuple():

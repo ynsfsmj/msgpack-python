@@ -1,12 +1,12 @@
 from __future__ import print_function
 import array
-import msgpack
-from msgpack import ExtType
+import pymsgpack
+from pymsgpack import ExtType
 
 
 def test_pack_ext_type():
     def p(s):
-        packer = msgpack.Packer()
+        packer = pymsgpack.Packer()
         packer.pack_ext_type(0x42, s)
         return packer.bytes()
     assert p(b'A')        == b'\xd4\x42A'          # fixext 1
@@ -21,7 +21,7 @@ def test_pack_ext_type():
 
 def test_unpack_ext_type():
     def check(b, expected):
-        assert msgpack.unpackb(b) == expected
+        assert pymsgpack.unpackb(b) == expected
 
     check(b'\xd4\x42A',         ExtType(0x42, b'A'))        # fixext 1
     check(b'\xd5\x42AB',        ExtType(0x42, b'AB'))       # fixext 2
@@ -52,8 +52,8 @@ def test_extension_type():
         return obj
 
     obj = [42, b'hello', array.array('d', [1.1, 2.2, 3.3])]
-    s = msgpack.packb(obj, default=default)
-    obj2 = msgpack.unpackb(s, ext_hook=ext_hook)
+    s = pymsgpack.packb(obj, default=default)
+    obj2 = pymsgpack.unpackb(s, ext_hook=ext_hook)
     assert obj == obj2
 
 import sys
@@ -69,8 +69,8 @@ def test_overriding_hooks():
 
     obj = {"testval": long(1823746192837461928374619)}
     refobj = {"testval": default(obj["testval"])}
-    refout = msgpack.packb(refobj)
+    refout = pymsgpack.packb(refobj)
     assert isinstance(refout, (str, bytes))
-    testout = msgpack.packb(obj, default=default)
+    testout = pymsgpack.packb(obj, default=default)
 
     assert refout == testout
