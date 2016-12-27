@@ -1,3 +1,14 @@
+pymsgpack 0.1
+=============
+msgpack protocol is modified by our needs, and the never used tag 0xc1 is used for customized data 
+such as set, tuple, and class instances (including new style and old style python class).
+
+pymsgpack will temporarily not support other languages and will be used among same run time environments (with same import path and class definition)
+the detailed reason for this limitation is that when we pack an instance, we extract the __dict__, __class__.__name__, __module__ of it,
+and when we unpack the instance, we re-import the module and class, and build the instance using __new__, then set __dict__ to it.
+
+the fallback supports is not available anymore.
+
 0.5.0
 ======
 

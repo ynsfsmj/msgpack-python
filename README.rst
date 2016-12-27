@@ -1,4 +1,12 @@
 =======================
+PyMessagePack pymsgpack
+=======================
+
+with the same performance of msgpack but also support python objects, sets, tuples.
+msgpack protocol is modified so that there is no supports for other languages, except using compatible mode.
+This is modified from msgpack-python (described below).
+
+=======================
 MessagePack for Python
 =======================
 

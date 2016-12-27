@@ -11,4 +11,3 @@ msgpack/*.cpp
 *.egg-info
 /venv
 /tags
-/docs/_build

@@ -1,14 +1,14 @@
 # coding: utf-8
 #cython: embedsignature=True
 
-# 现在我们让 msgpack 支持简单的 Python 对象的序列化
+# 现在我们��? msgpack 支持简单的 Python 对象的序列化
 # msgpack 中的 0xc1 类型保留无用，我们拿过来作为自定义的类型头前缀
 # 我们的自定义头命名为 diy，第一个字节为 0xc1
-# diy 的第二个字节表示子类型，定义如下：
+# diy 的第二个字节表示子类型，定义如下��?
 # 0x00: tuple
 # 0x01: set (frozenset will be treated as set now)
 # 0x10: object
-# 外部沿用 msgpack.packb/unpackb 接口，因此不采用定义 default 函数的方法，而是在内部实现。
+# 外部沿用 msgpack.packb/unpackb 接口，因此不采用定义 default 函数的方法，而是在内部实现��?
 
 from cpython cimport *
 
@@ -86,6 +86,9 @@ cdef class Packer(object):
         treated as unsupported type and forwarded to default.
         This is useful when trying to implement accurate serialization
         for python types.
+    :param bool compatible_mode:
+        If set to true, use pure msgpack protocol, so we don't support diy types (set, tuple, instance...) with this mode. 
+        default False.
     """
     cdef msgpack_packer pk
     cdef object _default
@@ -94,6 +97,7 @@ cdef class Packer(object):
     cdef char *encoding
     cdef char *unicode_errors
     cdef bint strict_types
+    cdef bint compatible_mode
     cdef bool use_float
     cdef bint autoreset
 
@@ -107,9 +111,10 @@ cdef class Packer(object):
 
     def __init__(self, default=None, encoding='utf-8', unicode_errors='strict',
                  use_single_float=False, bint autoreset=1, bint use_bin_type=0,
-                 bint strict_types=0):
+                 bint strict_types=0, bint compatible_mode=0):
         self.use_float = use_single_float
         self.strict_types = strict_types
+        self.compatible_mode = compatible_mode
         self.autoreset = autoreset
         self.pk.use_bin_type = use_bin_type
         if default is not None:
@@ -150,6 +155,7 @@ cdef class Packer(object):
         cdef size_t cnl
         cdef int default_used = 0
         cdef bint strict_types = self.strict_types
+        cdef bint compatible_mode = self.compatible_mode
         cdef Py_buffer view
 
         if nest_limit < 0:
@@ -250,7 +256,7 @@ cdef class Packer(object):
                     for v in o:
                         ret = self._pack(v, nest_limit-1)
                         if ret != 0: break
-            elif PyTuple_CheckExact(o) if strict_types else PyTuple_Check(o):
+            elif not compatible_mode and (PyTuple_CheckExact(o) if strict_types else PyTuple_Check(o)):
                 L = len(o)
                 if L > ITEM_LIMIT:
                     raise PackValueError("tuple is too large")
@@ -261,7 +267,7 @@ cdef class Packer(object):
                     for v in o:
                         ret = self._pack(v, nest_limit-1)
                         if ret != 0: break
-            elif PySet_CheckExact(o) if strict_types else PySet_Check(o):
+            elif not compatible_mode and (PySet_CheckExact(o) if strict_types else PySet_Check(o)):
                 L = len(o)
                 if L > ITEM_LIMIT:
                     raise PackValueError("set is too large")
@@ -288,7 +294,7 @@ cdef class Packer(object):
                 default_used = 1
                 continue
             #elif PyInstance_Check(o) or isinstance(o, object):
-            elif PyInstance_Check(o) or (PyObject_IsInstance(o, object) and PyObject_HasAttr(o, "__dict__")):
+            elif not compatible_mode and (PyInstance_Check(o) or (PyObject_IsInstance(o, object) and PyObject_HasAttr(o, "__dict__"))):
                 mnl = len(o.__module__)
                 cnl = len(o.__class__.__name__)
                 d = <dict>o.__dict__

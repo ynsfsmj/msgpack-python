@@ -20,14 +20,11 @@ class ExtType(namedtuple('ExtType', 'code data')):
 
 
 import os
-if os.environ.get('MSGPACK_PUREPYTHON'):
-    from msgpack.fallback import Packer, unpack, unpackb, Unpacker
-else:
-    try:
-        from msgpack._packer import Packer
-        from msgpack._unpacker import unpack, unpackb, Unpacker
-    except ImportError:
-        from msgpack.fallback import Packer, unpack, unpackb, Unpacker
+try:
+    from msgpack._packer import Packer
+    from msgpack._unpacker import unpack, unpackb, Unpacker
+except ImportError:
+    print "Error: failed to import msgpack, no fallback available"
 
 
 def pack(o, stream, **kwargs):
