@@ -3,11 +3,13 @@ PyMessagePack pymsgpack
 =======================
 
 with the same performance of msgpack but also support python objects, sets, tuples.
+
 msgpack protocol is modified so that there is no supports for other languages, except using packb with compatible_mode = true.
+
 This is modified from msgpack-python (described below).
 
-this is the benchmark results on my x64 server, each for 200000 times:
-
+Here is the benchmark results on my x64 server, each for 200000 times:
+```
 python performance.py 
 datatype    pymsgpack time(s)   cpickle time(s) lifting ratio
 tuple0 ::   pymsgpack: 0.174    cpickle 0.183   ratio 1.05559422069
@@ -26,6 +28,7 @@ newobj1 ::  pymsgpack: 0.803    cpickle 3.296   ratio 4.1023097346
 oldobj1 ::  pymsgpack: 0.744    cpickle 1.592   ratio 2.14006685093
 newobj2 ::  pymsgpack: 7.386    cpickle 34.555  ratio 4.67847017069
 oldobj2 ::  pymsgpack: 7.161    cpickle 27.415  ratio 3.82807841966
+```
 
 =======================
 MessagePack for Python
