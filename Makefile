@@ -15,5 +15,5 @@ test:
 .PHONY: clean
 clean:
 	rm -rf build
-	rm pymsgpack/*.so
+	rm -f pymsgpack/*.so
 	rm -rf pymsgpack/__pycache__

@@ -103,7 +103,7 @@ setup(name='pymsgpack',
       packages=['pymsgpack'],
       description=desc,
       long_description=long_desc,
-      url='https://github.com/ynsfsmj/msgpack-python',
+      url='https://github.com/ynsfsmj/pymsgpack',
       classifiers=[
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 3',

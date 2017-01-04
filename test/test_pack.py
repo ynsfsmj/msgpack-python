@@ -83,8 +83,7 @@ def testDecodeBinary():
     assert re == b"abc"
 
 def testPackFloat():
-    assert packbarg(1.0, use_single_float=True)  == b'\xca' + struct.pack(str('>f'), 1.0)
-    assert packbarg(1.0, use_single_float=False) == b'\xcb' + struct.pack(str('>d'), 1.0)
+    assert packb(1.0) == b'\xcb' + struct.pack(str('>d'), 1.0)
 
 def testArraySize(sizes=[0, 5, 50, 1000]):
     bio = BytesIO()
@@ -147,10 +146,11 @@ class odict(dict):
 def test_odict():
     seq = [(b'one', 1), (b'two', 2), (b'three', 3), (b'four', 4)]
     od = odict(seq)
-    assert unpackb(packb(od), use_list=1) == dict(seq)
+    new = unpackb(packb(od))
+    assert new == od
     def pair_hook(seq):
         return list(seq)
-    assert unpackb(packb(od), object_pairs_hook=pair_hook, use_list=1) == seq
+    assert unpackb(packb(od), object_pairs_hook=pair_hook) == seq
 
 
 def test_pairlist():
