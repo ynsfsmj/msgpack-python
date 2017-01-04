@@ -9,7 +9,11 @@ and when we unpack the instance, we re-import the module and class, and build th
 
 the fallback supports is not available anymore.
 
-0.5.0
+
+----
+
+
+msgpack 0.5.0
 ======
 
 0.5 is important step toward 1.0.  There are some deprecations.
