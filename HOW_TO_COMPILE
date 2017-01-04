@@ -1,0 +1,4 @@
+make
+sudo pip uninstall pymsgpack
+sudo ./setup.py install
+make test

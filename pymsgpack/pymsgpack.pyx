@@ -77,8 +77,7 @@ cdef defaultPacker = Packer()
 def packbarg(o, **kwargs):
     return Packer(**kwargs).pack(o)
 
-cpdef packb(o):
-    return defaultPacker.pack(o)
+packb = defaultPacker.pack
 
 cdef extern from "Python.h":
 
@@ -201,7 +200,6 @@ cdef class Packer(object):
         cdef char* rawval
         cdef char* rawval2
         cdef int ret
-        cdef dict d
         cdef size_t L
         cdef size_t mnl
         cdef size_t cnl
@@ -214,15 +212,7 @@ cdef class Packer(object):
 
         while True:
             if not ignore_basic:
-                if PyBytes_Check(o):
-                    L = len(o)
-                    if L > ITEM_LIMIT:
-                        raise PackValueError("bytes is too large")
-                    rawval = o
-                    msgpack_pack_bin(&self.pk, L)
-                    msgpack_pack_raw_body(&self.pk, rawval, L)
-                    return 0
-                elif PyLong_Check(o):
+                if PyLong_Check(o):
                     # PyInt_Check(long) is True for Python 3.
                     # So we should test long before int.
                     try:
@@ -245,6 +235,14 @@ cdef class Packer(object):
                 elif PyFloat_Check(o):
                     dval = o
                     msgpack_pack_double(&self.pk, dval)
+                    return 0
+                elif PyBytes_Check(o):
+                    L = len(o)
+                    if L > ITEM_LIMIT:
+                        raise PackValueError("bytes is too large")
+                    rawval = o
+                    msgpack_pack_bin(&self.pk, L)
+                    msgpack_pack_raw_body(&self.pk, rawval, L)
                     return 0
                 elif o is None:
                     ret = msgpack_pack_nil(&self.pk)
@@ -285,14 +283,7 @@ cdef class Packer(object):
                 for k, val in o.iteritems():
                     #########
                     v = k
-                    if PyBytes_Check(v):
-                        L = len(v)
-                        if L > ITEM_LIMIT:
-                            raise PackValueError("bytes is too large")
-                        rawval = v
-                        msgpack_pack_bin(&self.pk, L)
-                        msgpack_pack_raw_body(&self.pk, rawval, L)
-                    elif PyLong_Check(v):
+                    if PyLong_Check(v):
                         try:
                             if v > 0:
                                 ullval = v
@@ -311,6 +302,13 @@ cdef class Packer(object):
                     elif PyFloat_Check(v):
                         dval = v
                         msgpack_pack_double(&self.pk, dval)
+                    elif PyBytes_Check(v):
+                        L = len(v)
+                        if L > ITEM_LIMIT:
+                            raise PackValueError("bytes is too large")
+                        rawval = v
+                        msgpack_pack_bin(&self.pk, L)
+                        msgpack_pack_raw_body(&self.pk, rawval, L)
                     elif v is None:
                         ret = msgpack_pack_nil(&self.pk)
                     elif isinstance(v, bool):
@@ -331,14 +329,7 @@ cdef class Packer(object):
                     else:
                         self._pack(v, nest_limit-1, 1)
                     v = val
-                    if PyBytes_Check(v):
-                        L = len(v)
-                        if L > ITEM_LIMIT:
-                            raise PackValueError("bytes is too large")
-                        rawval = v
-                        msgpack_pack_bin(&self.pk, L)
-                        msgpack_pack_raw_body(&self.pk, rawval, L)
-                    elif PyLong_Check(v):
+                    if PyLong_Check(v):
                         try:
                             if v > 0:
                                 ullval = v
@@ -357,6 +348,13 @@ cdef class Packer(object):
                     elif PyFloat_Check(v):
                         dval = v
                         msgpack_pack_double(&self.pk, dval)
+                    elif PyBytes_Check(v):
+                        L = len(v)
+                        if L > ITEM_LIMIT:
+                            raise PackValueError("bytes is too large")
+                        rawval = v
+                        msgpack_pack_bin(&self.pk, L)
+                        msgpack_pack_raw_body(&self.pk, rawval, L)
                     elif v is None:
                         ret = msgpack_pack_nil(&self.pk)
                     elif isinstance(v, bool):
@@ -384,14 +382,7 @@ cdef class Packer(object):
                 msgpack_pack_array(&self.pk, L)
                 for v in o:
                     #########
-                    if PyBytes_Check(v):
-                        L = len(v)
-                        if L > ITEM_LIMIT:
-                            raise PackValueError("bytes is too large")
-                        rawval = v
-                        msgpack_pack_bin(&self.pk, L)
-                        msgpack_pack_raw_body(&self.pk, rawval, L)
-                    elif PyLong_Check(v):
+                    if PyLong_Check(v):
                         try:
                             if v > 0:
                                 ullval = v
@@ -410,6 +401,13 @@ cdef class Packer(object):
                     elif PyFloat_Check(v):
                         dval = v
                         msgpack_pack_double(&self.pk, dval)
+                    elif PyBytes_Check(v):
+                        L = len(v)
+                        if L > ITEM_LIMIT:
+                            raise PackValueError("bytes is too large")
+                        rawval = v
+                        msgpack_pack_bin(&self.pk, L)
+                        msgpack_pack_raw_body(&self.pk, rawval, L)
                     elif v is None:
                         ret = msgpack_pack_nil(&self.pk)
                     elif isinstance(v, bool):
@@ -438,14 +436,7 @@ cdef class Packer(object):
                 msgpack_pack_array(&self.pk, L)
                 for v in o:
                     #########
-                    if PyBytes_Check(v):
-                        L = len(v)
-                        if L > ITEM_LIMIT:
-                            raise PackValueError("bytes is too large")
-                        rawval = v
-                        msgpack_pack_bin(&self.pk, L)
-                        msgpack_pack_raw_body(&self.pk, rawval, L)
-                    elif PyLong_Check(v):
+                    if PyLong_Check(v):
                         try:
                             if v > 0:
                                 ullval = v
@@ -464,6 +455,13 @@ cdef class Packer(object):
                     elif PyFloat_Check(v):
                         dval = v
                         msgpack_pack_double(&self.pk, dval)
+                    elif PyBytes_Check(v):
+                        L = len(v)
+                        if L > ITEM_LIMIT:
+                            raise PackValueError("bytes is too large")
+                        rawval = v
+                        msgpack_pack_bin(&self.pk, L)
+                        msgpack_pack_raw_body(&self.pk, rawval, L)
                     elif v is None:
                         ret = msgpack_pack_nil(&self.pk)
                     elif isinstance(v, bool):
@@ -492,14 +490,7 @@ cdef class Packer(object):
                 msgpack_pack_array(&self.pk, L)
                 for v in o:
                     #########
-                    if PyBytes_Check(v):
-                        L = len(v)
-                        if L > ITEM_LIMIT:
-                            raise PackValueError("bytes is too large")
-                        rawval = v
-                        msgpack_pack_bin(&self.pk, L)
-                        msgpack_pack_raw_body(&self.pk, rawval, L)
-                    elif PyLong_Check(v):
+                    if PyLong_Check(v):
                         try:
                             if v > 0:
                                 ullval = v
@@ -518,6 +509,13 @@ cdef class Packer(object):
                     elif PyFloat_Check(v):
                         dval = v
                         msgpack_pack_double(&self.pk, dval)
+                    elif PyBytes_Check(v):
+                        L = len(v)
+                        if L > ITEM_LIMIT:
+                            raise PackValueError("bytes is too large")
+                        rawval = v
+                        msgpack_pack_bin(&self.pk, L)
+                        msgpack_pack_raw_body(&self.pk, rawval, L)
                     elif v is None:
                         ret = msgpack_pack_nil(&self.pk)
                     elif isinstance(v, bool):
@@ -574,14 +572,7 @@ cdef class Packer(object):
                 for k, val in d.iteritems():
                     #########
                     v = k
-                    if PyBytes_Check(v):
-                        L = len(v)
-                        if L > ITEM_LIMIT:
-                            raise PackValueError("bytes is too large")
-                        rawval = v
-                        msgpack_pack_bin(&self.pk, L)
-                        msgpack_pack_raw_body(&self.pk, rawval, L)
-                    elif PyLong_Check(v):
+                    if PyLong_Check(v):
                         try:
                             if v > 0:
                                 ullval = v
@@ -600,6 +591,13 @@ cdef class Packer(object):
                     elif PyFloat_Check(v):
                         dval = v
                         msgpack_pack_double(&self.pk, dval)
+                    elif PyBytes_Check(v):
+                        L = len(v)
+                        if L > ITEM_LIMIT:
+                            raise PackValueError("bytes is too large")
+                        rawval = v
+                        msgpack_pack_bin(&self.pk, L)
+                        msgpack_pack_raw_body(&self.pk, rawval, L)
                     elif v is None:
                         ret = msgpack_pack_nil(&self.pk)
                     elif isinstance(v, bool):
@@ -620,14 +618,7 @@ cdef class Packer(object):
                     else:
                         self._pack(v, nest_limit-1, 1)
                     v = val
-                    if PyBytes_Check(v):
-                        L = len(v)
-                        if L > ITEM_LIMIT:
-                            raise PackValueError("bytes is too large")
-                        rawval = v
-                        msgpack_pack_bin(&self.pk, L)
-                        msgpack_pack_raw_body(&self.pk, rawval, L)
-                    elif PyLong_Check(v):
+                    if PyLong_Check(v):
                         try:
                             if v > 0:
                                 ullval = v
@@ -646,6 +637,13 @@ cdef class Packer(object):
                     elif PyFloat_Check(v):
                         dval = v
                         msgpack_pack_double(&self.pk, dval)
+                    elif PyBytes_Check(v):
+                        L = len(v)
+                        if L > ITEM_LIMIT:
+                            raise PackValueError("bytes is too large")
+                        rawval = v
+                        msgpack_pack_bin(&self.pk, L)
+                        msgpack_pack_raw_body(&self.pk, rawval, L)
                     elif v is None:
                         ret = msgpack_pack_nil(&self.pk)
                     elif isinstance(v, bool):
