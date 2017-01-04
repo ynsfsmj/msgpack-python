@@ -13,23 +13,26 @@ Here is the benchmark results on my x64 server, each for 200000 times:
 ::
 
    python performance.py 
-   datatype    pymsgpack time(s)   cpickle time(s) lifting ratio
-   tuple0 ::   pymsgpack: 0.174    cpickle 0.183   ratio 1.05559422069
-   tuple1 ::   pymsgpack: 0.239    cpickle 0.661   ratio 2.76297446233
-   tuple2 ::   pymsgpack: 0.374    cpickle 1.65    ratio 4.40260815435
-   list0  ::   pymsgpack: 0.152    cpickle 0.241   ratio 1.57958324045
-   list1  ::   pymsgpack: 0.234    cpickle 0.695   ratio 2.96769310226
-   list2  ::   pymsgpack: 0.394    cpickle 1.942   ratio 4.92129153318
-   dict0  ::   pymsgpack: 0.144    cpickle 0.238   ratio 1.64725146546
-   dict1  ::   pymsgpack: 0.358    cpickle 0.933   ratio 2.60197497112
-   dict2  ::   pymsgpack: 0.83     cpickle 3.383   ratio 4.07436514496
-   set0   ::   pymsgpack: 0.191    cpickle 1.041   ratio 5.43598605147
-   set1   ::   pymsgpack: 0.327    cpickle 1.518   ratio 4.63418349227
-   set2   ::   pymsgpack: 0.764    cpickle 3.151   ratio 4.12212838607
-   newobj1 ::  pymsgpack: 0.803    cpickle 3.296   ratio 4.1023097346
-   oldobj1 ::  pymsgpack: 0.744    cpickle 1.592   ratio 2.14006685093
-   newobj2 ::  pymsgpack: 7.386    cpickle 34.555  ratio 4.67847017069
-   oldobj2 ::  pymsgpack: 7.161    cpickle 27.415  ratio 3.82807841966
+   datatype    pymsgpack time(s)   cpickle time(s)  speed lifting ratio length(bytes)
+   tuple0 ::    pymsgpack: 0.1      cpickle 0.173   ratio 1.73416934768 len:    3 : 4
+   tuple1 ::    pymsgpack: 0.239    cpickle 0.487   ratio 2.03731597438 len:    255 : 507
+   tuple2 ::    pymsgpack: 0.045    cpickle 0.121   ratio 2.64331974967 len:    804 : 822
+   list0  ::    pymsgpack: 0.09     cpickle 0.208   ratio 2.29779431123 len:    1 : 6
+   list1  ::    pymsgpack: 0.237    cpickle 0.518   ratio 2.18276936665 len:    253 : 508
+   list11 ::    pymsgpack: 0.665    cpickle 2.719   ratio 4.08486282398 len:    708 : 1373
+   list111::    pymsgpack: 0.206    cpickle 0.792   ratio 3.84661280845 len:    2253 : 2258
+   list2  ::    pymsgpack: 0.083    cpickle 0.229   ratio 2.75877366213 len:    802 : 823
+   dict0  ::    pymsgpack: 0.093    cpickle 0.205   ratio 2.18427884432 len:    1 : 6
+   dict1  ::    pymsgpack: 0.041    cpickle 0.068   ratio 1.67492092969 len:    16 : 33
+   dict2  ::    pymsgpack: 0.063    cpickle 0.108   ratio 1.71722933995 len:    1048 : 1070
+   dict3  ::    pymsgpack: 0.651    cpickle 0.928   ratio 1.42595863402 len:    1669 : 1758
+   set0   ::    pymsgpack: 0.112    cpickle 1.074   ratio 9.5092526728  len:    3 : 27
+   set1   ::    pymsgpack: 0.084    cpickle 0.378   ratio 4.47175768422 len:    55 : 131
+   set2   ::    pymsgpack: 0.052    cpickle 0.341   ratio 6.47297065153 len:    804 : 846
+   newobj1::    pymsgpack: 0.307    cpickle 2.049   ratio 6.6596654085  len:    62 : 87
+   oldobj1::    pymsgpack: 0.424    cpickle 1.39    ratio 3.27720864994 len:    62 : 87
+   newobj2::    pymsgpack: 0.778    cpickle 3.213   ratio 4.12987933922 len:    7799 : 4618
+   oldobj2::    pymsgpack: 0.858    cpickle 2.685   ratio 3.1270893371  len:    7796 : 4607
 
 
 How to use:
