@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import struct
 from pytest import raises, xfail
 
-from pymsgpack import packb, unpackb, Unpacker, Packer
+from pymsgpack import packb, packbarg, unpackb, Unpacker, Packer
 
 from io import BytesIO
 
@@ -30,7 +30,7 @@ def testPack():
 def testPackUnicode():
     test_data = ["", "abcd", ["defgh"], "Русский текст"]
     for td in test_data:
-        re = unpackb(packb(td, encoding='utf-8'), use_list=1, encoding='utf-8')
+        re = unpackb(packbarg(td, encoding='utf-8'), use_list=1, encoding='utf-8')
         assert re == td
         packer = Packer(encoding='utf-8')
         data = packer.pack(td)
@@ -46,7 +46,7 @@ def testPackUTF32():
             "Русский текст",
             ]
         for td in test_data:
-            re = unpackb(packb(td, encoding='utf-32'), use_list=1, encoding='utf-32')
+            re = unpackb(packbarg(td, encoding='utf-32'), use_list=1, encoding='utf-32')
             assert re == td
     except LookupError as e:
         xfail(e)
@@ -68,10 +68,10 @@ def testStrictUnicodeUnpack():
 
 def testStrictUnicodePack():
     with raises(UnicodeEncodeError):
-        packb("abc\xeddef", encoding='ascii', unicode_errors='strict')
+        packbarg("abc\xeddef", encoding='ascii', unicode_errors='strict')
 
 def testIgnoreErrorsPack():
-    re = unpackb(packb("abcФФФdef", encoding='ascii', unicode_errors='ignore'), encoding='utf-8', use_list=1)
+    re = unpackb(packbarg("abcФФФdef", encoding='ascii', unicode_errors='ignore'), encoding='utf-8', use_list=1)
     assert re == "abcdef"
 
 def testNoEncoding():
@@ -83,8 +83,8 @@ def testDecodeBinary():
     assert re == b"abc"
 
 def testPackFloat():
-    assert packb(1.0, use_single_float=True)  == b'\xca' + struct.pack(str('>f'), 1.0)
-    assert packb(1.0, use_single_float=False) == b'\xcb' + struct.pack(str('>d'), 1.0)
+    assert packbarg(1.0, use_single_float=True)  == b'\xca' + struct.pack(str('>f'), 1.0)
+    assert packbarg(1.0, use_single_float=False) == b'\xcb' + struct.pack(str('>d'), 1.0)
 
 def testArraySize(sizes=[0, 5, 50, 1000]):
     bio = BytesIO()

@@ -3,7 +3,7 @@
 
 import io
 from pymsgpack import Unpacker, BufferFull
-from pymsgpack.exceptions import OutOfData
+from pymsgpack import OutOfData
 from pytest import raises
 
 

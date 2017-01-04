@@ -52,7 +52,7 @@ def test_extension_type():
         return obj
 
     obj = [42, b'hello', array.array('d', [1.1, 2.2, 3.3])]
-    s = pymsgpack.packb(obj, default=default)
+    s = pymsgpack.packbarg(obj, default=default)
     obj2 = pymsgpack.unpackb(s, ext_hook=ext_hook)
     assert obj == obj2
 
@@ -71,6 +71,6 @@ def test_overriding_hooks():
     refobj = {"testval": default(obj["testval"])}
     refout = pymsgpack.packb(refobj)
     assert isinstance(refout, (str, bytes))
-    testout = pymsgpack.packb(obj, default=default)
+    testout = pymsgpack.packbarg(obj, default=default)
 
     assert refout == testout

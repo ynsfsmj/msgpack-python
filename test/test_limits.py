@@ -6,7 +6,7 @@ import pytest
 import pymsgpack
 
 from pymsgpack import (
-    packb, unpackb, Packer, Unpacker, ExtType,
+    packb, packbarg, unpackb, Packer, Unpacker, ExtType,
 )
 
 from pymsgpack import (
@@ -55,7 +55,7 @@ def test_max_str_len():
 
 def test_max_bin_len():
     d = b'x' * 3
-    packed = packb(d, use_bin_type=True)
+    packed = packbarg(d, use_bin_type=True)
 
     unpacker = Unpacker(max_bin_len=3)
     unpacker.feed(packed)

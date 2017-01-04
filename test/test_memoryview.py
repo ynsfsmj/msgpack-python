@@ -2,7 +2,7 @@
 # coding: utf-8
 
 from array import array
-from pymsgpack import packb, unpackb
+from pymsgpack import packb, packbarg, unpackb
 import sys
 
 
@@ -40,7 +40,7 @@ def _runtest(format, nbytes, expected_header, expected_prefix, use_bin_type):
     view = make_memoryview(original_array)
 
     # pack, unpack, and reconstruct array
-    packed = packb(view, use_bin_type=use_bin_type)
+    packed = packbarg(view, use_bin_type=use_bin_type)
     unpacked = unpackb(packed)
     reconstructed_array = make_array(format, unpacked)
 

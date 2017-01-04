@@ -2,7 +2,7 @@
 # coding: utf-8
 
 from pytest import raises
-from pymsgpack import packb, unpackb
+from pymsgpack import packb, packbarg, unpackb
 
 def _decode_complex(obj):
     if b'__complex__' in obj:
@@ -15,17 +15,17 @@ def _encode_complex(obj):
     return obj
 
 def test_encode_hook():
-    packed = packb([3, 1+2j], default=_encode_complex)
+    packed = packbarg([3, 1+2j], default=_encode_complex)
     unpacked = unpackb(packed, use_list=1)
     assert unpacked[1] == {b'__complex__': True, b'real': 1, b'imag': 2}
 
 def test_decode_hook():
-    packed = packb([3, {b'__complex__': True, b'real': 1, b'imag': 2}])
+    packed = packbarg([3, {b'__complex__': True, b'real': 1, b'imag': 2}])
     unpacked = unpackb(packed, object_hook=_decode_complex, use_list=1)
     assert unpacked[1] == 1+2j
 
 def test_decode_pairs_hook():
-    packed = packb([3, {1: 2, 3: 4}])
+    packed = packbarg([3, {1: 2, 3: 4}])
     prod_sum = 1 * 2 + 3 * 4
     unpacked = unpackb(packed, object_pairs_hook=lambda l: sum(k * v for k, v in l), use_list=1)
     assert unpacked[1] == prod_sum
@@ -36,7 +36,7 @@ def test_only_one_obj_hook():
 
 def test_bad_hook():
     with raises(TypeError):
-        packed = packb([3, 1+2j], default=lambda o: o)
+        packed = packbarg([3, 1+2j], default=lambda o: o)
         unpacked = unpackb(packed, use_list=1)
 
 def _arr_to_str(arr):

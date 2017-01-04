@@ -80,14 +80,8 @@ else:
 
 ext_modules = []
 if not hasattr(sys, 'pypy_version_info'):
-    ext_modules.append(Extension('pymsgpack._packer',
-                                 sources=['pymsgpack/_packer.cpp'],
-                                 libraries=libraries,
-                                 include_dirs=['.'],
-                                 define_macros=macros,
-                                 ))
-    ext_modules.append(Extension('pymsgpack._unpacker',
-                                 sources=['pymsgpack/_unpacker.cpp'],
+    ext_modules.append(Extension('pymsgpack',
+                                 sources=['pymsgpack/pymsgpack.cpp'],
                                  libraries=libraries,
                                  include_dirs=['.'],
                                  define_macros=macros,
