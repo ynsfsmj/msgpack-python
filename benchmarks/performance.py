@@ -94,14 +94,14 @@ class OldChild(OldMeddle1, OldMeddle2):
 def pymsgpack_data(data):
     tp = packb(data)
     #print len(tp)
-    #tun = unpackb(tp)
+    tun = unpackb(tp)
     #print allhash(data), allhash(tun)
     #assert allhash(data) == allhash(tun)
 
 def cpickle_data(data):
     tp = dumps(data, 2)
     #print len(tp)
-    #tun = loads(tp)
+    tun = loads(tp)
     #print allhash(data), allhash(tun)
     #assert allhash(data) == allhash(tun)
 
