@@ -1,3 +1,5 @@
+#sudo apt install cython pytest python-pip
+#sudo pip install pytest
 make
 sudo pip uninstall pymsgpack
 sudo ./setup.py install
