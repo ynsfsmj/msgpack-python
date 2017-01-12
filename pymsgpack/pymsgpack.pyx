@@ -552,6 +552,8 @@ cdef class Packer(object):
                 continue
             #elif PyInstance_Check(o) or isinstance(o, object):
             elif not compatible_mode and (PyInstance_Check(o) or (PyObject_IsInstance(o, object) and PyObject_HasAttr(o, "__dict__"))):
+                if PyTuple_Check(o) or PyList_Check(o) or PyDict_Check(o) or PySet_Check(o):
+                    raise PackValueError("derived class from tuple, list, dict, set is not supported")
                 mnl = len(o.__module__)
                 cnl = len(o.__class__.__name__)
                 d = <dict>o.__dict__
