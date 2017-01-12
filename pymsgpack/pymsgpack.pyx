@@ -275,7 +275,7 @@ cdef class Packer(object):
                 msgpack_pack_ext(&self.pk, longval, L)
                 msgpack_pack_raw_body(&self.pk, rawval, L)
 
-            elif PyDict_Check(o):
+            elif PyDict_CheckExact(o) or (compatible_mode and PyDict_Check(o)):
                 L = len(o)
                 if L > ITEM_LIMIT:
                     raise PackValueError("dict is too large")
@@ -375,7 +375,7 @@ cdef class Packer(object):
                     else:
                         self._pack(v, nest_limit-1, 1)
                     #########
-            elif PyList_Check(o):
+            elif PyList_CheckExact(o) or (compatible_mode and (PyList_Check(o) or PyTuple_Check(o))):
                 L = len(o)
                 if L > ITEM_LIMIT:
                     raise PackValueError("list is too large")
@@ -428,7 +428,7 @@ cdef class Packer(object):
                     else:
                         self._pack(v, nest_limit-1, 1)
                     #########
-            elif not compatible_mode and PyTuple_Check(o):
+            elif not compatible_mode and PyTuple_CheckExact(o):
                 L = len(o)
                 if L > ITEM_LIMIT:
                     raise PackValueError("tuple is too large")
@@ -482,7 +482,7 @@ cdef class Packer(object):
                     else:
                         self._pack(v, nest_limit-1, 1)
                     #########
-            elif not compatible_mode and PySet_Check(o):
+            elif not compatible_mode and PySet_CheckExact(o):
                 L = len(o)
                 if L > ITEM_LIMIT:
                     raise PackValueError("set is too large")
