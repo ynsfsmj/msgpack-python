@@ -72,7 +72,11 @@ class PackOverflowError(PackValueError, OverflowError):
 ################################
 # packer
 
-cdef defaultPacker = Packer()
+cdef defaultPacker = Packer() # must renew this when exception to reset status
+
+def resetPacker():
+    global defaultPacker
+    defaultPacker = Packer()
 
 def packbarg(o, **kwargs):
     return Packer(**kwargs).pack(o)
@@ -208,6 +212,7 @@ cdef class Packer(object):
         cdef Py_buffer view
 
         if nest_limit < 0:
+            resetPacker()
             raise PackValueError("recursion limit exceeded.")
 
         while True:
@@ -226,6 +231,7 @@ cdef class Packer(object):
                         if self._default is not None:
                             self._pack(self._default(o), nest_limit-1)
                         else:
+                            resetPacker()
                             raise PackOverflowError("Integer value out of range")
                     return 0
                 elif PyInt_Check(o):
@@ -239,6 +245,7 @@ cdef class Packer(object):
                 elif PyBytes_Check(o):
                     L = len(o)
                     if L > ITEM_LIMIT:
+                        resetPacker()
                         raise PackValueError("bytes is too large")
                     rawval = o
                     msgpack_pack_bin(&self.pk, L)
@@ -255,10 +262,12 @@ cdef class Packer(object):
                     return 0
                 elif PyUnicode_Check(o):
                     if not self.encoding:
+                        resetPacker()
                         raise TypeError("Can't encode unicode string: no encoding is specified")
                     o = PyUnicode_AsEncodedString(o, self.encoding, self.unicode_errors)
                     L = len(o)
                     if L > ITEM_LIMIT:
+                        resetPacker()
                         raise PackValueError("unicode string is too large")
                     rawval = o
                     msgpack_pack_raw(&self.pk, L)
@@ -271,6 +280,7 @@ cdef class Packer(object):
                 rawval = o.data
                 L = len(o.data)
                 if L > ITEM_LIMIT:
+                    resetPacker()
                     raise PackValueError("EXT data is too large")
                 msgpack_pack_ext(&self.pk, longval, L)
                 msgpack_pack_raw_body(&self.pk, rawval, L)
@@ -278,6 +288,7 @@ cdef class Packer(object):
             elif PyDict_CheckExact(o) or (compatible_mode and PyDict_Check(o)):
                 L = len(o)
                 if L > ITEM_LIMIT:
+                    resetPacker()
                     raise PackValueError("dict is too large")
                 msgpack_pack_map(&self.pk, L)
                 for k, val in o.iteritems():
@@ -295,6 +306,7 @@ cdef class Packer(object):
                             if self._default is not None:
                                 self._pack(self._default(v), nest_limit-1)
                             else:
+                                resetPacker()
                                 raise PackOverflowError("Integer value out of range")
                     elif PyInt_Check(v):
                         longval = v
@@ -305,6 +317,7 @@ cdef class Packer(object):
                     elif PyBytes_Check(v):
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("bytes is too large")
                         rawval = v
                         msgpack_pack_bin(&self.pk, L)
@@ -318,10 +331,12 @@ cdef class Packer(object):
                             msgpack_pack_false(&self.pk)
                     elif PyUnicode_Check(v):
                         if not self.encoding:
+                            resetPacker()
                             raise TypeError("Can't encode unicode string: no encoding is specified")
                         v = PyUnicode_AsEncodedString(v, self.encoding, self.unicode_errors)
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("unicode string is too large")
                         rawval = v
                         msgpack_pack_raw(&self.pk, L)
@@ -341,6 +356,7 @@ cdef class Packer(object):
                             if self._default is not None:
                                 self._pack(self._default(v), nest_limit-1)
                             else:
+                                resetPacker()
                                 raise PackOverflowError("Integer value out of range")
                     elif PyInt_Check(v):
                         longval = v
@@ -351,6 +367,7 @@ cdef class Packer(object):
                     elif PyBytes_Check(v):
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("bytes is too large")
                         rawval = v
                         msgpack_pack_bin(&self.pk, L)
@@ -364,10 +381,12 @@ cdef class Packer(object):
                             msgpack_pack_false(&self.pk)
                     elif PyUnicode_Check(v):
                         if not self.encoding:
+                            resetPacker()
                             raise TypeError("Can't encode unicode string: no encoding is specified")
                         v = PyUnicode_AsEncodedString(v, self.encoding, self.unicode_errors)
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("unicode string is too large")
                         rawval = v
                         msgpack_pack_raw(&self.pk, L)
@@ -378,6 +397,7 @@ cdef class Packer(object):
             elif PyList_CheckExact(o) or (compatible_mode and (PyList_Check(o) or PyTuple_Check(o))):
                 L = len(o)
                 if L > ITEM_LIMIT:
+                    resetPacker()
                     raise PackValueError("list is too large")
                 msgpack_pack_array(&self.pk, L)
                 for v in o:
@@ -394,6 +414,7 @@ cdef class Packer(object):
                             if self._default is not None:
                                 self._pack(self._default(v), nest_limit-1)
                             else:
+                                resetPacker()
                                 raise PackOverflowError("Integer value out of range")
                     elif PyInt_Check(v):
                         longval = v
@@ -404,6 +425,7 @@ cdef class Packer(object):
                     elif PyBytes_Check(v):
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("bytes is too large")
                         rawval = v
                         msgpack_pack_bin(&self.pk, L)
@@ -417,10 +439,12 @@ cdef class Packer(object):
                             msgpack_pack_false(&self.pk)
                     elif PyUnicode_Check(v):
                         if not self.encoding:
+                            resetPacker()
                             raise TypeError("Can't encode unicode string: no encoding is specified")
                         v = PyUnicode_AsEncodedString(v, self.encoding, self.unicode_errors)
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("unicode string is too large")
                         rawval = v
                         msgpack_pack_raw(&self.pk, L)
@@ -431,6 +455,7 @@ cdef class Packer(object):
             elif not compatible_mode and PyTuple_CheckExact(o):
                 L = len(o)
                 if L > ITEM_LIMIT:
+                    resetPacker()
                     raise PackValueError("tuple is too large")
                 msgpack_pack_tuple(&self.pk, L)
                 msgpack_pack_array(&self.pk, L)
@@ -448,6 +473,7 @@ cdef class Packer(object):
                             if self._default is not None:
                                 self._pack(self._default(v), nest_limit-1)
                             else:
+                                resetPacker()
                                 raise PackOverflowError("Integer value out of range")
                     elif PyInt_Check(v):
                         longval = v
@@ -458,6 +484,7 @@ cdef class Packer(object):
                     elif PyBytes_Check(v):
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("bytes is too large")
                         rawval = v
                         msgpack_pack_bin(&self.pk, L)
@@ -471,10 +498,12 @@ cdef class Packer(object):
                             msgpack_pack_false(&self.pk)
                     elif PyUnicode_Check(v):
                         if not self.encoding:
+                            resetPacker()
                             raise TypeError("Can't encode unicode string: no encoding is specified")
                         v = PyUnicode_AsEncodedString(v, self.encoding, self.unicode_errors)
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("unicode string is too large")
                         rawval = v
                         msgpack_pack_raw(&self.pk, L)
@@ -485,6 +514,7 @@ cdef class Packer(object):
             elif not compatible_mode and PySet_CheckExact(o):
                 L = len(o)
                 if L > ITEM_LIMIT:
+                    resetPacker()
                     raise PackValueError("set is too large")
                 msgpack_pack_set(&self.pk, L)
                 msgpack_pack_array(&self.pk, L)
@@ -502,6 +532,7 @@ cdef class Packer(object):
                             if self._default is not None:
                                 self._pack(self._default(v), nest_limit-1)
                             else:
+                                resetPacker()
                                 raise PackOverflowError("Integer value out of range")
                     elif PyInt_Check(v):
                         longval = v
@@ -512,6 +543,7 @@ cdef class Packer(object):
                     elif PyBytes_Check(v):
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("bytes is too large")
                         rawval = v
                         msgpack_pack_bin(&self.pk, L)
@@ -525,10 +557,12 @@ cdef class Packer(object):
                             msgpack_pack_false(&self.pk)
                     elif PyUnicode_Check(v):
                         if not self.encoding:
+                            resetPacker()
                             raise TypeError("Can't encode unicode string: no encoding is specified")
                         v = PyUnicode_AsEncodedString(v, self.encoding, self.unicode_errors)
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("unicode string is too large")
                         rawval = v
                         msgpack_pack_raw(&self.pk, L)
@@ -538,10 +572,12 @@ cdef class Packer(object):
                     #########
             elif PyMemoryView_Check(o):
                 if PyObject_GetBuffer(o, &view, PyBUF_SIMPLE) != 0:
+                    resetPacker()
                     raise PackValueError("could not get buffer for memoryview")
                 L = view.len
                 if L > ITEM_LIMIT:
                     PyBuffer_Release(&view);
+                    resetPacker()
                     raise PackValueError("memoryview is too large")
                 msgpack_pack_bin(&self.pk, L)
                 msgpack_pack_raw_body(&self.pk, <char*>view.buf, L)
@@ -553,15 +589,18 @@ cdef class Packer(object):
             #elif PyInstance_Check(o) or isinstance(o, object):
             elif not compatible_mode and (PyInstance_Check(o) or (PyObject_IsInstance(o, object) and PyObject_HasAttr(o, "__dict__"))):
                 if PyTuple_Check(o) or PyList_Check(o) or PyDict_Check(o) or PySet_Check(o):
+                    resetPacker()
                     raise PackValueError("derived class from tuple, list, dict, set is not supported")
                 mnl = len(o.__module__)
                 cnl = len(o.__class__.__name__)
                 d = <dict>o.__dict__
                 L = len(d)
                 if L > ITEM_LIMIT:
+                    resetPacker()
                     raise PackValueError("object is too large")
                 if mnl >= MODULE_CLASS_NAME_LIMIT or cnl >= MODULE_CLASS_NAME_LIMIT or mnl <= 0 or cnl <= 0:
                     # we limit the name length to less than 128 to make sure the bin type is (0xc4)
+                    resetPacker()
                     raise PackValueError("module name or class name is too large" % (o.__module__, o.__class__.__name__))
                 rawval = o.__module__
                 rawval2 = o.__class__.__name__
@@ -586,6 +625,7 @@ cdef class Packer(object):
                             if self._default is not None:
                                 self._pack(self._default(v), nest_limit-1)
                             else:
+                                resetPacker()
                                 raise PackOverflowError("Integer value out of range")
                     elif PyInt_Check(v):
                         longval = v
@@ -596,6 +636,7 @@ cdef class Packer(object):
                     elif PyBytes_Check(v):
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("bytes is too large")
                         rawval = v
                         msgpack_pack_bin(&self.pk, L)
@@ -609,10 +650,12 @@ cdef class Packer(object):
                             msgpack_pack_false(&self.pk)
                     elif PyUnicode_Check(v):
                         if not self.encoding:
+                            resetPacker()
                             raise TypeError("Can't encode unicode string: no encoding is specified")
                         v = PyUnicode_AsEncodedString(v, self.encoding, self.unicode_errors)
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("unicode string is too large")
                         rawval = v
                         msgpack_pack_raw(&self.pk, L)
@@ -632,6 +675,7 @@ cdef class Packer(object):
                             if self._default is not None:
                                 self._pack(self._default(v), nest_limit-1)
                             else:
+                                resetPacker()
                                 raise PackOverflowError("Integer value out of range")
                     elif PyInt_Check(v):
                         longval = v
@@ -642,6 +686,7 @@ cdef class Packer(object):
                     elif PyBytes_Check(v):
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("bytes is too large")
                         rawval = v
                         msgpack_pack_bin(&self.pk, L)
@@ -655,10 +700,12 @@ cdef class Packer(object):
                             msgpack_pack_false(&self.pk)
                     elif PyUnicode_Check(v):
                         if not self.encoding:
+                            resetPacker()
                             raise TypeError("Can't encode unicode string: no encoding is specified")
                         v = PyUnicode_AsEncodedString(v, self.encoding, self.unicode_errors)
                         L = len(v)
                         if L > ITEM_LIMIT:
+                            resetPacker()
                             raise PackValueError("unicode string is too large")
                         rawval = v
                         msgpack_pack_raw(&self.pk, L)
@@ -667,6 +714,7 @@ cdef class Packer(object):
                         self._pack(v, nest_limit-1, 1)
                     #########
             else:
+                resetPacker()
                 raise TypeError("can't serialize %r" % (o,))
             return 0
 
@@ -674,8 +722,10 @@ cdef class Packer(object):
         cdef int ret
         ret = self._pack(obj, DEFAULT_RECURSE_LIMIT)
         if ret == -1:
+            resetPacker()
             raise MemoryError
         elif ret:  # should not happen.
+            resetPacker()
             raise TypeError
         if self.autoreset:
             buf = PyBytes_FromStringAndSize(self.pk.buf, self.pk.length)
@@ -688,11 +738,14 @@ cdef class Packer(object):
 
     def pack_array_header(self, long long size):
         if size > ITEM_LIMIT:
+            resetPacker()
             raise PackValueError
         cdef int ret = msgpack_pack_array(&self.pk, size)
         if ret == -1:
+            resetPacker()
             raise MemoryError
         elif ret:  # should not happen
+            resetPacker()
             raise TypeError
         if self.autoreset:
             buf = PyBytes_FromStringAndSize(self.pk.buf, self.pk.length)
@@ -701,11 +754,14 @@ cdef class Packer(object):
 
     def pack_map_header(self, long long size):
         if size > ITEM_LIMIT:
+            resetPacker()
             raise PackValueError
         cdef int ret = msgpack_pack_map(&self.pk, size)
         if ret == -1:
+            resetPacker()
             raise MemoryError
         elif ret:  # should not happen
+            resetPacker()
             raise TypeError
         if self.autoreset:
             buf = PyBytes_FromStringAndSize(self.pk.buf, self.pk.length)
@@ -727,8 +783,10 @@ cdef class Packer(object):
                 ret = self._pack(v)
                 if ret != 0: break
         if ret == -1:
+            resetPacker()
             raise MemoryError
         elif ret:  # should not happen
+            resetPacker()
             raise TypeError
         if self.autoreset:
             buf = PyBytes_FromStringAndSize(self.pk.buf, self.pk.length)
